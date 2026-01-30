@@ -9,6 +9,11 @@ from datetime import datetime
 from typing import List, Dict, Any
 import json
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+class CategoryUpdate(BaseModel):
+    category: str
+
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 # Database setup
@@ -39,7 +44,7 @@ def get_db():
 app = FastAPI()
 
 # Global variable to store latest transactions
-latest_transactions = []
+# latest_transactions = []
 
 @app.get("/health/ollama")
 def ollama_health():
@@ -120,121 +125,9 @@ async def normalize_csv(file: UploadFile = File(...)):
         "transactions": normalized
     }
 
-@app.post("/categorize/transactions")
-async def categorize_transactions(transactions: List[Dict[str, Any]]):
-    """
-    Takes normalized transactions and categorizes them using Qwen.
-    Processes in batches to avoid overwhelming the model.
-    """
-    global latest_transactions
-    
-    batch_size = 25
-    categorized = []
-    
-    print(f"Starting categorization of {len(transactions)} transactions")
-    
-    for batch_idx in range(0, len(transactions), batch_size):
-        batch = transactions[batch_idx:batch_idx + batch_size]
-        
-        print(f"Processing batch {batch_idx//batch_size + 1}, transactions {batch_idx} to {batch_idx + len(batch)}")
-        
-        # Create a prompt for Qwen
-        prompt = """You are a financial transaction categorizer. Analyze these transactions and assign a category to each one.
-
-Return ONLY valid JSON in this exact format with no other text:
-{
-  "transactions": [
-    {"index": 0, "category": "Groceries"},
-    {"index": 1, "category": "Utilities"},
-    {"index": 2, "category": "Dining"}
-  ]
-}
-
-CRITICAL: You MUST provide a category for EVERY single transaction listed below. The response must include all indices from 0 to the last transaction number.
-
-Common categories: Groceries, Dining, Utilities, Transportation, Entertainment, Shopping, Healthcare, Income, Transfer, Bank Fees, Pet Care, Subscriptions, Gas/Fuel, Insurance, Mortgage/Rent, Credit Card Payment, Other
-
-Transactions to categorize:
-"""
-        
-        # Add each transaction with its index
-        for idx, txn in enumerate(batch):
-            amount_display = f"${abs(txn.get('amount', 0)):.2f}"
-            if txn.get('amount', 0) > 0:
-                amount_display = f"+{amount_display}"
-            else:
-                amount_display = f"-{amount_display}"
-            prompt += f"\n{idx}. {txn.get('description', 'Unknown')} {amount_display}"
-        
-        prompt += "\n\nRemember: Return categories for ALL transactions from index 0 to " + str(len(batch)-1)
-        
-        # Send to Ollama
-        try:
-            r = requests.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": "qwen2.5:14b",
-                    "prompt": prompt,
-                    "stream": False,
-                    "temperature": 0.2
-                },
-                timeout=180
-            )
-            
-            result = r.json()
-            response_text = result.get("response", "")
-            
-            print(f"Qwen response length: {len(response_text)} chars")
-            
-            # Try to parse the JSON response
-            response_text = response_text.strip()
-            if response_text.startswith("```"):
-                lines = response_text.split("\n")
-                response_text = "\n".join([l for l in lines if not l.strip().startswith("```")])
-            response_text = response_text.strip()
-            
-            categories_data = json.loads(response_text)
-            
-            # Create a mapping of indices to categories
-            category_map = {}
-            for cat_item in categories_data.get("transactions", []):
-                idx = cat_item.get("index")
-                category = cat_item.get("category")
-                if idx is not None:
-                    category_map[idx] = category
-            
-            print(f"Received {len(category_map)} categories for {len(batch)} transactions")
-            
-            # Apply categories to ALL transactions
-            for idx, txn in enumerate(batch):
-                if idx in category_map:
-                    txn["category"] = category_map[idx]
-                else:
-                    txn["category"] = "Uncategorized"
-                    print(f"WARNING: Transaction {batch_idx + idx} was not categorized")
-            
-            categorized.extend(batch)
-            
-        except Exception as e:
-            print(f"ERROR in batch processing: {str(e)}")
-            # If categorization fails, mark all as error
-            for idx, txn in enumerate(batch):
-                txn["category"] = "Uncategorized - Error"
-            categorized.extend(batch)
-    
-    # Store in memory for editing
-    latest_transactions = categorized
-    
-    print(f"Categorization complete. Stored {len(latest_transactions)} transactions")
-    
-    # Count uncategorized
-    uncategorized_count = sum(1 for t in categorized if t.get("category", "").startswith("Uncategorized"))
-    
-    return {
-        "transaction_count": len(categorized),
-        "uncategorized_count": uncategorized_count,
-        "transactions": categorized
-    }
+@app.post("/categorize/pending")
+def categorize_pending():
+    return {"status": "stub"}
 
 @app.get("/transactions/view")
 def view_transactions():
@@ -244,23 +137,7 @@ def view_transactions():
         "transactions": latest_transactions
     }
 
-@app.put("/transactions/update-category")
-def update_category(transaction_index: int, new_category: str):
-    """Update the category for a specific transaction by index"""
-    if transaction_index < 0 or transaction_index >= len(latest_transactions):
-        return {"error": "Invalid transaction index"}
-    
-    old_category = latest_transactions[transaction_index].get("category", "None")
-    latest_transactions[transaction_index]["category"] = new_category
-    
-    return {
-        "success": True,
-        "transaction_index": transaction_index,
-        "description": latest_transactions[transaction_index].get("description"),
-        "old_category": old_category,
-        "new_category": new_category
-    }
-from fastapi.responses import HTMLResponse
+
 
 @app.post("/transactions/save")
 def save_transactions():
@@ -270,8 +147,6 @@ def save_transactions():
     
     conn = get_db()
     
-    # Clear existing data (optional - remove this if you want to keep adding)
-    conn.execute("DELETE FROM transactions")
     
     # Insert all transactions
     for txn in latest_transactions:
@@ -1346,4 +1221,28 @@ async function showStats() {
 </body>
 </html>
     """
+@app.post("/transactions/{transaction_id}/category")
+def update_transaction_category(
+    transaction_id: int,
+    update: CategoryUpdate
+):
+    with duckdb.connect(DB_PATH) as con:
+        result = con.execute(
+            """
+            UPDATE transactions
+            SET category = ?
+            WHERE id = ?
+            RETURNING id, category
+            """,
+            [update.category, transaction_id]
+        ).fetchone()
+
+    if result is None:
+        return {"error": "Transaction not found"}
+
+    return {
+        "id": result[0],
+        "category": result[1],
+        "status": "updated"
+    }
 
