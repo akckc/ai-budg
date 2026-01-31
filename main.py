@@ -141,34 +141,69 @@ def view_transactions():
 
 @app.post("/transactions/save")
 def save_transactions():
-    """Save currently loaded transactions to DuckDB"""
+    """
+    Persist in-memory transactions to DuckDB without deleting existing data.
+    This is a transitional endpoint and will be removed once uploads write
+    directly to the DB.
+    """
     if not latest_transactions:
-        return {"error": "No transactions to save. Upload and categorize first."}
-    
+        return {"error": "No transactions to save."}
+
     conn = get_db()
-    
-    
-    # Insert all transactions
+
+    inserted = 0
+    skipped = 0
+
     for txn in latest_transactions:
-        conn.execute("""
-            INSERT INTO transactions (id, date, description, amount, balance, category)
-            VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, ?)
+        # Check if transaction already exists
+        exists = conn.execute("""
+            SELECT 1
+            FROM transactions
+            WHERE date = ?
+              AND description = ?
+              AND amount = ?
+              AND balance = ?
         """, [
-            txn.get('date'),
-            txn.get('description'),
-            txn.get('amount'),
-            txn.get('balance'),
-            txn.get('category')
+            txn.get("date"),
+            txn.get("description"),
+            txn.get("amount"),
+            txn.get("balance")
+        ]).fetchone()
+
+        if exists:
+            skipped += 1
+            continue
+
+        conn.execute("""
+            INSERT INTO transactions (
+                date,
+                description,
+                amount,
+                balance,
+                category
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, [
+            txn.get("date"),
+            txn.get("description"),
+            txn.get("amount"),
+            txn.get("balance"),
+            txn.get("category")
         ])
-    
-    count = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+
+        inserted += 1
+
+    total = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
     conn.close()
-    
+
     return {
         "success": True,
-        "message": f"Saved {count} transactions to database",
-        "count": count
+        "inserted": inserted,
+        "skipped": skipped,
+        "total_in_db": total,
+        "note": "This endpoint is transitional and will be removed."
     }
+
 
 @app.get("/transactions/from-db")
 def get_transactions_from_db():
