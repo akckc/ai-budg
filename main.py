@@ -43,8 +43,8 @@ def get_db():
 
 app = FastAPI()
 
-# Global variable to store latest transactions
-# latest_transactions = []
+# LEGACY: transitional in-memory buffer. 
+latest_transactions = []
 
 @app.get("/health/ollama")
 def ollama_health():
@@ -60,18 +60,61 @@ def ollama_health():
     return r.json()
 
 @app.post("/upload/csv")
-async def upload_csv(file: UploadFile = File(...)):
-    contents = await file.read()
-    reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
-    rows = []
-    for i, row in enumerate(reader):
-        rows.append(row)
-        if i >= 4:
-            break
+def upload_csv(file: UploadFile = File(...)):
+    contents = file.file.read().decode("utf-8")
+    reader = csv.DictReader(io.StringIO(contents))
+
+    conn = get_db()
+
+    inserted = 0
+    skipped = 0
+
+    for row in reader:
+        txn = normalize_row(row)  # ← your existing normalization logic
+
+        # Optional dedupe check (recommended)
+        exists = conn.execute("""
+            SELECT 1 FROM transactions
+            WHERE date = ?
+              AND description = ?
+              AND amount = ?
+              AND balance = ?
+        """, [
+            txn["date"],
+            txn["description"],
+            txn["amount"],
+            txn.get("balance")
+        ]).fetchone()
+
+        if exists:
+            skipped += 1
+            continue
+
+        conn.execute("""
+            INSERT INTO transactions (
+                date,
+                description,
+                amount,
+                balance,
+                category
+            ) VALUES (?, ?, ?, ?, NULL)
+        """, [
+            txn["date"],
+            txn["description"],
+            txn["amount"],
+            txn.get("balance")
+        ])
+
+        inserted += 1
+
+    conn.close()
+
     return {
-        "filename": file.filename,
-        "preview": rows
+        "success": True,
+        "inserted": inserted,
+        "skipped": skipped
     }
+
 
 @app.post("/normalize/csv")
 async def normalize_csv(file: UploadFile = File(...)):
@@ -126,8 +169,92 @@ async def normalize_csv(file: UploadFile = File(...)):
     }
 
 @app.post("/categorize/pending")
-def categorize_pending():
-    return {"status": "stub"}
+def categorize_pending(limit: int = 20):
+    """
+    Categorize uncategorized transactions from the DB using Ollama.
+    """
+
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT id, date, description, amount
+        FROM transactions
+        WHERE category IS NULL
+        ORDER BY date
+        LIMIT ?
+    """, [limit]).fetchall()
+
+    if not rows:
+        conn.close()
+        return {"status": "nothing to categorize"}
+
+    # Build prompt
+    lines = []
+    for r in rows:
+        lines.append(
+            f"ID {r[0]} | {r[1]} | {r[2]} | ${r[3]:.2f}"
+        )
+
+    prompt = f"""
+You are categorizing financial transactions.
+
+Return ONLY valid JSON in this exact format:
+[
+  {{ "id": 123, "category": "Groceries" }}
+]
+
+Use short, common category names.
+Do not include explanations.
+
+Transactions:
+{chr(10).join(lines)}
+"""
+
+    # Call Ollama
+    resp = requests.post(
+        f"{OLLAMA_BASE_URL}/api/generate",
+        json={
+            "model": "qwen2.5:14b",
+            "prompt": prompt,
+            "stream": False
+        },
+        timeout=120
+    )
+
+    if resp.status_code != 200:
+        conn.close()
+        return {"error": "Ollama request failed", "details": resp.text}
+
+    try:
+        data = json.loads(resp.json()["response"])
+    except Exception as e:
+        conn.close()
+        return {
+            "error": "Failed to parse LLM response",
+            "raw_response": resp.json().get("response")
+        }
+
+    updated = 0
+
+    for item in data:
+        if "id" not in item or "category" not in item:
+            continue
+
+        conn.execute("""
+            UPDATE transactions
+            SET category = ?
+            WHERE id = ?
+        """, [item["category"], item["id"]])
+
+        updated += 1
+
+    conn.close()
+
+    return {
+        "requested": len(rows),
+        "updated": updated
+    }
+
 
 @app.get("/transactions/view")
 def view_transactions():
@@ -142,10 +269,11 @@ def view_transactions():
 @app.post("/transactions/save")
 def save_transactions():
     """
-    Persist in-memory transactions to DuckDB without deleting existing data.
-    This is a transitional endpoint and will be removed once uploads write
-    directly to the DB.
+    Persist 'latest_transactions' into the DuckDB database in a safe,
+    non-destructive way. This is a transitional endpoint and will be removed
+    once uploads write directly to the DB.
     """
+
     if not latest_transactions:
         return {"error": "No transactions to save."}
 
@@ -155,10 +283,9 @@ def save_transactions():
     skipped = 0
 
     for txn in latest_transactions:
-        # Check if transaction already exists
+        # Check for an existing match
         exists = conn.execute("""
-            SELECT 1
-            FROM transactions
+            SELECT 1 FROM transactions
             WHERE date = ?
               AND description = ?
               AND amount = ?
@@ -181,8 +308,7 @@ def save_transactions():
                 amount,
                 balance,
                 category
-            )
-            VALUES (?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?)
         """, [
             txn.get("date"),
             txn.get("description"),
@@ -190,19 +316,19 @@ def save_transactions():
             txn.get("balance"),
             txn.get("category")
         ])
-
         inserted += 1
 
-    total = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+    total_in_db = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
     conn.close()
 
     return {
         "success": True,
         "inserted": inserted,
         "skipped": skipped,
-        "total_in_db": total,
+        "total_in_db": total_in_db,
         "note": "This endpoint is transitional and will be removed."
     }
+
 
 
 @app.get("/transactions/from-db")
@@ -1050,11 +1176,7 @@ async def upload_page():
                 showStatus(`Normalized ${normalizeData.transaction_count} transactions. Now categorizing with AI...`, 'info');
                 
                 // Step 2: Categorize
-                const categorizeResponse = await fetch('/categorize/transactions', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(normalizeData.transactions)
-                });
+                await fetch('/categorize/pending', { method: 'POST' });
                 
                 const categorizeData = await categorizeResponse.json();
                 transactions = categorizeData.transactions;
