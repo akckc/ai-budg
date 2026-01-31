@@ -1178,8 +1178,8 @@ async def upload_page():
                 // Step 2: Categorize
                 await fetch('/categorize/pending', { method: 'POST' });
                 
-                const categorizeData = await categorizeResponse.json();
-                transactions = categorizeData.transactions;
+                #const categorizeData = await categorizeResponse.json();
+                #transactions = categorizeData.transactions;
                 
                 showStatus(`Success! Categorized ${categorizeData.transaction_count} transactions. ${categorizeData.uncategorized_count} need review.`, 'success');
                 
