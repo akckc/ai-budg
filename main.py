@@ -110,7 +110,7 @@ def upload_csv(file: UploadFile = File(...)):
         balance,
         category
     ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL)
-"""
+""", [
             txn["date"],
             txn["description"],
             txn["amount"],
