@@ -290,7 +290,11 @@ Transactions:
             "prompt": prompt,
             "stream": False
         },
-        timeout=120
+        "options": {
+            "num_predict": 500  # Limit response length
+        }
+    },
+    timeout=300  # 5 minutes
     )
 
     if resp.status_code != 200:
