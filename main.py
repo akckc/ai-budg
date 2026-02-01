@@ -120,24 +120,24 @@ def upload_csv(file: UploadFile = File(...)):
 async def normalize_csv(file: UploadFile = File(...)):
     contents = await file.read()
     reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
-    
-    normalized = []
-    
+
+    conn = get_db()
+
+    inserted = 0
+    skipped = 0
+
     for row in reader:
-        # Parse date from M/D/YYYY to YYYY-MM-DD
+        # Normalize fields (same as before)
         date_str = row.get("Date", "").strip()
         if date_str:
             date_obj = datetime.strptime(date_str, "%m/%d/%Y")
             iso_date = date_obj.strftime("%Y-%m-%d")
         else:
             iso_date = None
-        
-        # Parse amount - handle parentheses for negative numbers and $ signs
+
         amount_str = row.get("Amount", "").strip()
         if amount_str:
-            # Remove $ sign and commas
             amount_str = amount_str.replace("$", "").replace(",", "")
-            # Remove parentheses and convert to negative
             if amount_str.startswith("(") and amount_str.endswith(")"):
                 amount = -float(amount_str.strip("()"))
             elif amount_str.startswith("-"):
@@ -146,27 +146,50 @@ async def normalize_csv(file: UploadFile = File(...)):
                 amount = float(amount_str)
         else:
             amount = None
-        
-        # Parse balance - also remove $ and commas
+
         balance_str = row.get("Balance", "").strip()
         if balance_str:
             balance_str = balance_str.replace("$", "").replace(",", "")
             balance = float(balance_str)
         else:
             balance = None
-        
-        normalized.append({
-            "date": iso_date,
-            "description": row.get("Description", "").strip(),
-            "amount": amount,
-            "balance": balance
-        })
-    
+
+        # Dedup against DB
+        exists = conn.execute("""
+            SELECT 1 FROM transactions
+            WHERE date = ?
+              AND description = ?
+              AND amount = ?
+              AND balance = ?
+        """, [iso_date, row.get("Description","").strip(), amount, balance]).fetchone()
+
+        if exists:
+            skipped += 1
+            continue
+
+        # Insert with category NULL
+        conn.execute("""
+            INSERT INTO transactions (
+                date,
+                description,
+                amount,
+                balance,
+                category
+            ) VALUES (?, ?, ?, ?, NULL)
+        """, [iso_date, row.get("Description","").strip(), amount, balance])
+
+        inserted += 1
+
+    # Close DB
+    conn.close()
+
     return {
+        "success": True,
         "filename": file.filename,
-        "transaction_count": len(normalized),
-        "transactions": normalized
+        "inserted": inserted,
+        "skipped": skipped
     }
+
 
 @app.post("/categorize/pending")
 def categorize_pending(limit: int = 20):
