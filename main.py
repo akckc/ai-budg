@@ -248,7 +248,7 @@ def categorize_pending(limit: int = 20):
 
     # Build prompt
     lines = []
-   rows_for_llm = [r for r in rows if r[0] not in resolved_ids]
+    rows_for_llm = [r for r in rows if r[0] not in resolved_ids]
 
     if not rows_for_llm:
         conn.close()
