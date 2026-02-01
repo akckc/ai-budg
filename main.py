@@ -102,14 +102,15 @@ def upload_csv(file: UploadFile = File(...)):
             continue
 
         conn.execute("""
-            INSERT INTO transactions (
-                date,
-                description,
-                amount,
-                balance,
-                category
-            ) VALUES (?, ?, ?, ?, NULL)
-        """, [
+    INSERT INTO transactions (
+        id,
+        date,
+        description,
+        amount,
+        balance,
+        category
+    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL)
+"""
             txn["date"],
             txn["description"],
             txn["amount"],
@@ -180,14 +181,15 @@ async def normalize_csv(file: UploadFile = File(...)):
 
         # Insert with category NULL
         conn.execute("""
-            INSERT INTO transactions (
-                date,
-                description,
-                amount,
-                balance,
-                category
-            ) VALUES (?, ?, ?, ?, NULL)
-        """, [iso_date, row.get("Description","").strip(), amount, balance])
+    INSERT INTO transactions (
+        id,
+        date,
+        description,
+        amount,
+        balance,
+        category
+    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL)
+""", [iso_date, row.get("Description","").strip(), amount, balance])
 
         inserted += 1
 
