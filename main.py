@@ -39,6 +39,17 @@ def get_db():
         conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq START 1")
     except:
         pass
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS category_rules (
+            id INTEGER PRIMARY KEY,
+            pattern TEXT NOT NULL,
+            min_amount DOUBLE DEFAULT 0,
+            max_amount DOUBLE,
+            category TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(pattern, min_amount, max_amount)
+        )
+""")
     return conn
 
 app = FastAPI()
@@ -199,6 +210,15 @@ def categorize_pending(limit: int = 20):
 
     conn = get_db()
 
+    rules = conn.execute("""
+        SELECT pattern, min_amount, max_amount, category
+        FROM category_rules
+        ORDER BY
+            length(pattern) DESC,
+            min_amount DESC
+    """).fetchall()
+
+
     rows = conn.execute("""
         SELECT id, date, description, amount
         FROM transactions
@@ -206,6 +226,21 @@ def categorize_pending(limit: int = 20):
         ORDER BY date
         LIMIT ?
     """, [limit]).fetchall()
+    resolved_ids = set()
+
+    for txn_id, date, desc, amount in rows:
+        for pattern, min_amt, max_amt, category in rules:
+            if pattern.lower() in desc.lower():
+                if amount is None:
+                    continue
+                if amount >= min_amt and (max_amt is None or amount <= max_amt):
+                    conn.execute("""
+                        UPDATE transactions
+                        SET category = ?
+                        WHERE id = ?
+                    """, [category, txn_id])
+                    resolved_ids.add(txn_id)
+                    break
 
     if not rows:
         conn.close()
@@ -213,10 +248,22 @@ def categorize_pending(limit: int = 20):
 
     # Build prompt
     lines = []
-    for r in rows:
+   rows_for_llm = [r for r in rows if r[0] not in resolved_ids]
+
+    if not rows_for_llm:
+        conn.close()
+        return {
+            "requested": len(rows),
+            "updated": len(resolved_ids),
+            "via_rules": len(resolved_ids),
+            "via_llm": 0
+        }
+
+    for r in rows_for_llm:
         lines.append(
             f"ID {r[0]} | {r[1]} | {r[2]} | ${r[3]:.2f}"
         )
+
 
     prompt = f"""
 You are categorizing financial transactions.
@@ -278,15 +325,12 @@ Transactions:
         "updated": updated
     }
 
-
-@app.get("/transactions/view")
-def view_transactions():
-    """View all currently loaded transactions"""
     return {
-        "transaction_count": len(latest_transactions),
-        "transactions": latest_transactions
-    }
-
+    "requested": len(rows),
+    "updated": updated + len(resolved_ids),
+    "via_rules": len(resolved_ids),
+    "via_llm": updated
+}
 
 
 @app.post("/transactions/save")
