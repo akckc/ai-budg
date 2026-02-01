@@ -1170,6 +1170,8 @@ async def upload_page():
             <button class="button" onclick="uploadAndProcess()">Upload & Categorize</button>
             <div id="uploadStatus" class="status"></div>
         </div>
+
+        <div id="upload-status" style="margin-top: 1em; font-family: monospace;"></div>
         
         <div id="statsSection" style="display:none;">
             <div class="stats">
@@ -1218,46 +1220,62 @@ async def upload_page():
         }
         
         async function uploadAndProcess() {
-            const fileInput = document.getElementById('csvFile');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                showStatus('Please select a CSV file first', 'error');
-                return;
-            }
-            
-            showStatus('Uploading and normalizing...', 'info');
-            
-            // Step 1: Normalize
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const normalizeResponse = await fetch('/normalize/csv', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const normalizeData = await normalizeResponse.json();
-                
-                showStatus(`Normalized ${normalizeData.transaction_count} transactions. Now categorizing with AI...`, 'info');
-                
-                // Step 2: Categorize
-                await fetch('/categorize/pending', { method: 'POST' });
-                
-                #const categorizeData = await categorizeResponse.json();
-                #transactions = categorizeData.transactions;
-                
-                showStatus(`Success! Categorized ${categorizeData.transaction_count} transactions. ${categorizeData.uncategorized_count} need review.`, 'success');
-                
-                updateCategories();
-                displayTransactions();
-                document.getElementById('statsSection').style.display = 'block';
-                
-            } catch (error) {
-                showStatus('Error: ' + error.message, 'error');
-            }
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showStatus('Please select a CSV file first', 'error');
+        return;
+    }
+
+    showStatus('Uploading and importing CSV into database…', 'info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        // 1️⃣ Upload & normalize (DB insert)
+        const normalizeResponse = await fetch('/normalize/csv', {
+            method: 'POST',
+            body: formData
+        });
+
+        const normalizeData = await normalizeResponse.json();
+
+        if (!normalizeResponse.ok || !normalizeData.success) {
+            showStatus('Upload failed', 'error');
+            return;
         }
+
+        showStatus(
+            `✓ Upload complete. Inserted ${normalizeData.inserted}, skipped ${normalizeData.skipped}. Categorizing…`,
+            'info'
+        );
+
+        // 2️⃣ Trigger categorization (background)
+        const catResp = await fetch('/categorize/pending', { method: 'POST' });
+        const catData = await catResp.json();
+
+        // 3️⃣ Reload from DB (source of truth)
+        const loadResp = await fetch('/transactions/from-db');
+        const dbData = await loadResp.json();
+
+        transactions = dbData.transactions;
+
+        updateCategories();
+        displayTransactions();
+        document.getElementById('statsSection').style.display = 'block';
+
+        showStatus(
+            `✓ Ready. ${catData.updated ?? 0} categorized.`,
+            'success'
+        );
+
+    } catch (error) {
+        showStatus('Error: ' + error.message, 'error');
+    }
+}
+
         
         function updateCategories() {
             allCategories.clear();
