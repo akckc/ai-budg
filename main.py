@@ -24,15 +24,25 @@ def get_db():
     conn = duckdb.connect(DB_PATH)
     # Create table if it doesn't exist
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY,
-            date DATE,
-            description VARCHAR,
-            amount DECIMAL(10,2),
-            balance DECIMAL(10,2),
-            category VARCHAR,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+    CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY DEFAULT nextval('transactions_id_seq'),
+
+        date DATE NOT NULL,
+        description VARCHAR NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        balance DECIMAL(10,2),
+
+        category VARCHAR,
+
+        source VARCHAR NOT NULL,        -- manual | csv | ai
+
+        account_id INTEGER NULL,
+        user_id INTEGER NULL,
+        merchant_id INTEGER NULL,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+
     """)
     # Create sequence for auto-incrementing IDs
     try:
@@ -69,6 +79,38 @@ def ollama_health():
         timeout=60
     )
     return r.json()
+
+@app.post("/transactions/manual")
+def add_manual_transaction(txn: dict):
+    required = ["date", "description", "amount", "category"]
+    for field in required:
+        if field not in txn:
+            return {"error": f"Missing required field: {field}"}
+
+    conn = get_db()
+
+    conn.execute("""
+        INSERT INTO transactions (
+            date,
+            description,
+            amount,
+            category,
+            source,
+            account_id,
+            user_id
+        ) VALUES (?, ?, ?, ?, 'manual', ?, ?)
+    """, [
+        txn["date"],
+        txn["description"].strip(),
+        txn["amount"],
+        txn["category"].strip(),
+        txn.get("account_id"),
+        txn.get("user_id")
+    ])
+
+    conn.close()
+
+    return {"success": True}
 
 @app.post("/upload/csv")
 def upload_csv(file: UploadFile = File(...)):
@@ -284,12 +326,11 @@ Transactions:
 
     # Call Ollama
     resp = requests.post(
-        f"{OLLAMA_BASE_URL}/api/generate",
-        json={
-            "model": "qwen2.5:14b",
-            "prompt": prompt,
-            "stream": False
-        },
+    f"{OLLAMA_BASE_URL}/api/generate",
+    json={
+        "model": "qwen2.5:14b",
+        "prompt": prompt,
+        "stream": False,
         "options": {
             "num_predict": 500  # Limit response length
         }
@@ -1177,6 +1218,21 @@ async def upload_page():
             <div id="uploadStatus" class="status"></div>
         </div>
 
+        <div class="upload-section">
+        <h3>Quick Add Transaction</h3>
+
+        <input type="date" id="manualDate">
+        <input type="text" id="manualDesc" placeholder="Description">
+        <input type="number" id="manualAmount" step="0.01" placeholder="-25.00">
+        <input type="text" id="manualCategory" placeholder="Category">
+
+        <button class="button" onclick="addManualTransaction()">
+            Add Transaction
+        </button>
+
+        <div id="manualStatus" class="status"></div>
+        </div>
+
         <div id="upload-status" style="margin-top: 1em; font-family: monospace;"></div>
         
         <div id="statsSection" style="display:none;">
@@ -1438,6 +1494,27 @@ async function loadFromDatabase() {
     } catch (error) {
         showStatus('Error loading: ' + error.message, 'error');
     }
+}
+
+async function addManualTransaction() {
+  const body = {
+    date: document.getElementById('manualDate').value,
+    description: document.getElementById('manualDesc').value,
+    amount: parseFloat(document.getElementById('manualAmount').value),
+    category: document.getElementById('manualCategory').value
+  };
+
+  const res = await fetch('/transactions/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (res.ok) {
+    showStatus('Transaction added', 'success');
+  } else {
+    showStatus('Failed to add transaction', 'error');
+  }
 }
 
 async function showStats() {
