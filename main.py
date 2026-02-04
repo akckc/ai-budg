@@ -18,7 +18,7 @@ app = FastAPI()
 @app.on_event("startup")
 def startup():
     init_db()
-    
+
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 # Database setup
 DB_PATH = "/app/data/budget.db"
@@ -448,12 +448,12 @@ def get_transactions_from_db():
     conn = get_db()
     
     result = conn.execute("""
-        SELECT id, date, description, amount, balance, category, uploaded_at
+        SELECT id, date, description, amount, balance, category, created_at
         FROM transactions
         ORDER BY date DESC
     """).fetchall()
     
-    columns = ['id', 'date', 'description', 'amount', 'balance', 'category', 'uploaded_at']
+    columns = ['id', 'date', 'description', 'amount', 'balance', 'category', 'created_at']
     transactions = [dict(zip(columns, row)) for row in result]
     
     conn.close()
