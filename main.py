@@ -14,55 +14,52 @@ from pydantic import BaseModel
 class CategoryUpdate(BaseModel):
     category: str
 
-
+app = FastAPI()
+@app.on_event("startup")
+def startup():
+    init_db()
+    
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 # Database setup
 DB_PATH = "/app/data/budget.db"
 
-def get_db():
-    """Get or create database connection"""
-    conn = duckdb.connect(DB_PATH)
-    # Create table if it doesn't exist
+def init_db():
+    conn = get_db()
+
     conn.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY DEFAULT nextval('transactions_id_seq'),
-
-        date DATE NOT NULL,
-        description VARCHAR NOT NULL,
-        amount DECIMAL(10,2) NOT NULL,
-        balance DECIMAL(10,2),
-
-        category VARCHAR,
-
-        source VARCHAR NOT NULL,        -- manual | csv | ai
-
-        account_id INTEGER NULL,
-        user_id INTEGER NULL,
-        merchant_id INTEGER NULL,
-
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-
+        CREATE SEQUENCE IF NOT EXISTS transactions_id_seq
+        START 1
     """)
-    # Create sequence for auto-incrementing IDs
-    try:
-        conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq START 1")
-    except:
-        pass
+
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS category_rules (
-            id INTEGER PRIMARY KEY,
-            pattern TEXT NOT NULL,
-            min_amount DOUBLE DEFAULT 0,
-            max_amount DOUBLE,
-            category TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(pattern, min_amount, max_amount)
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY DEFAULT nextval('transactions_id_seq'),
+
+            date DATE NOT NULL,
+            description VARCHAR NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            balance DECIMAL(10,2),
+            category VARCHAR,
+
+            source VARCHAR NOT NULL,
+
+            account_id INTEGER NULL,
+            user_id INTEGER NULL,
+            merchant_id INTEGER NULL,
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-""")
+    """)
+
+    conn.close()
+
+def get_db():
+    conn = duckdb.connect(DB_PATH)
     return conn
 
-app = FastAPI()
+
+
+
 
 # LEGACY: transitional in-memory buffer. 
 latest_transactions = []
