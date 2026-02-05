@@ -50,6 +50,16 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS category_rules (
+            id INTEGER PRIMARY KEY,
+            pattern VARCHAR NOT NULL,
+            min_amount DECIMAL(10,2),
+            max_amount DECIMAL(10,2),
+            category VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     conn.close()
 
