@@ -41,7 +41,7 @@ def init_db():
             balance DECIMAL(10,2),
             category VARCHAR,
 
-            source VARCHAR NOT NULL,
+            source VARCHAR NOT NULL DEFAULT 'unknown',
 
             account_id INTEGER NULL,
             user_id INTEGER NULL,
@@ -89,7 +89,7 @@ def ollama_health():
 
 @app.post("/transactions/manual")
 def add_manual_transaction(txn: dict):
-    required = ["date", "description", "amount", "category"]
+    required = ["date", "description", "amount", "category","source"]
     for field in required:
         if field not in txn:
             return {"error": f"Missing required field: {field}"}
