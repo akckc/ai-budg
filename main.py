@@ -147,8 +147,9 @@ def upload_csv(file: UploadFile = File(...)):
         description,
         amount,
         balance,
-        category
-    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL)
+        category,
+        source
+    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL,csv)
 """, [
             txn["date"],
             txn["description"],
@@ -226,8 +227,9 @@ async def normalize_csv(file: UploadFile = File(...)):
         description,
         amount,
         balance,
-        category
-    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL)
+        category,
+        source
+    ) VALUES (nextval('transactions_id_seq'), ?, ?, ?, ?, NULL,csv)
 """, [iso_date, row.get("Description","").strip(), amount, balance])
 
         inserted += 1
@@ -418,8 +420,9 @@ def save_transactions():
                 description,
                 amount,
                 balance,
-                category
-            ) VALUES (?, ?, ?, ?, ?)
+                category,
+                source
+            ) VALUES (?, ?, ?, ?, ?, upload)
         """, [
             txn.get("date"),
             txn.get("description"),
