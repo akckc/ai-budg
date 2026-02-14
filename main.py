@@ -258,21 +258,21 @@ async def normalize_csv(file: UploadFile = File(...)):
 @app.post("/categorize/pending")
 def categorize_pending(limit: int = 20):
     """
-    Categorize uncategorized transactions from the DB using Ollama.
+    Categorize uncategorized transactions.
+    1) Apply deterministic category_rules
+    2) Send remaining rows to Ollama
     """
 
     conn = get_db()
 
+    # Fetch rules
     rules = conn.execute("""
         SELECT pattern, min_amount, max_amount, category
         FROM category_rules
-        ORDER BY
-            length(pattern) DESC,
-            min_amount DESC
+        ORDER BY length(pattern) DESC, min_amount DESC
     """).fetchall()
-    
 
-
+    # Fetch uncategorized transactions
     rows = conn.execute("""
         SELECT id, date, description, amount
         FROM transactions
@@ -280,58 +280,40 @@ def categorize_pending(limit: int = 20):
         ORDER BY date
         LIMIT ?
     """, [limit]).fetchall()
-    resolved_ids = set()
 
+    if not rows:
+        conn.close()
+        return {"status": "nothing to categorize"}
+
+    resolved_ids = set()
+    remaining_rows = []
+
+    # ----------------------------
+    # 1) APPLY RULES FIRST
+    # ----------------------------
     for txn_id, date, desc, amount in rows:
+        matched = False
+
         for pattern, min_amt, max_amt, category in rules:
-            if pattern.lower() in desc.lower():
-                if amount is None:
-                    continue
-                if amount >= min_amt and (max_amt is None or amount <= max_amt):
+            if desc and pattern.lower() in desc.lower():
+                if (min_amt is None or amount >= min_amt) and \
+                   (max_amt is None or amount <= max_amt):
+
                     conn.execute("""
                         UPDATE transactions
                         SET category = ?
                         WHERE id = ?
                     """, [category, txn_id])
+
                     resolved_ids.add(txn_id)
+                    matched = True
                     break
 
-    if not rows:
-        conn.close()
-        return {"status": "nothing to categorize"}
-    rule_updated = 0
-remaining_rows = []
+        if not matched:
+            remaining_rows.append((txn_id, date, desc, amount))
 
-for txn in rows:
-    txn_id, date, desc, amount = txn
-    matched = False
-
-    for rule in rules:
-        pattern, min_amt, max_amt, category = rule
-
-        if pattern.lower() in desc.lower():
-            if (min_amt is None or amount >= min_amt) and \
-               (max_amt is None or amount <= max_amt):
-
-                conn.execute("""
-                    UPDATE transactions
-                    SET category = ?
-                    WHERE id = ?
-                """, [category, txn_id])
-
-                rule_updated += 1
-                matched = True
-                break
-
-    if not matched:
-        remaining_rows.append(txn)
-
-
-    # Build prompt
-    lines = []
-    rows_for_llm = [r for r in rows if r[0] not in resolved_ids]
-
-    if not rows_for_llm:
+    # If rules handled everything, skip LLM
+    if not remaining_rows:
         conn.close()
         return {
             "requested": len(rows),
@@ -340,11 +322,13 @@ for txn in rows:
             "via_llm": 0
         }
 
-    for r in rows_for_llm:
-        lines.append(
-            f"ID {r[0]} | {r[1]} | {r[2]} | ${r[3]:.2f}"
-        )
-
+    # ----------------------------
+    # 2) BUILD LLM PROMPT
+    # ----------------------------
+    lines = [
+        f"ID {r[0]} | {r[1]} | {r[2]} | ${r[3]:.2f}"
+        for r in remaining_rows
+    ]
 
     prompt = f"""
 You are categorizing financial transactions.
@@ -361,18 +345,20 @@ Transactions:
 {chr(10).join(lines)}
 """
 
-    # Call Ollama
+    # ----------------------------
+    # 3) CALL OLLAMA
+    # ----------------------------
     resp = requests.post(
-    f"{OLLAMA_BASE_URL}/api/generate",
-    json={
-        "model": "qwen2.5:14b",
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "num_predict": 500  # Limit response length
-        }
-    },
-    timeout=300  # 5 minutes
+        f"{OLLAMA_BASE_URL}/api/generate",
+        json={
+            "model": "qwen2.5:14b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 500
+            }
+        },
+        timeout=300
     )
 
     if resp.status_code != 200:
@@ -381,14 +367,17 @@ Transactions:
 
     try:
         data = json.loads(resp.json()["response"])
-    except Exception as e:
+    except Exception:
         conn.close()
         return {
             "error": "Failed to parse LLM response",
             "raw_response": resp.json().get("response")
         }
 
-    updated = 0
+    # ----------------------------
+    # 4) UPDATE FROM LLM
+    # ----------------------------
+    llm_updated = 0
 
     for item in data:
         if "id" not in item or "category" not in item:
@@ -400,21 +389,16 @@ Transactions:
             WHERE id = ?
         """, [item["category"], item["id"]])
 
-        updated += 1
+        llm_updated += 1
 
     conn.close()
 
     return {
         "requested": len(rows),
-        "updated": updated
+        "updated": len(resolved_ids) + llm_updated,
+        "via_rules": len(resolved_ids),
+        "via_llm": llm_updated
     }
-
-    return {
-    "requested": len(rows),
-    "updated": updated + len(resolved_ids),
-    "via_rules": len(resolved_ids),
-    "via_llm": updated
-}
 
 
 
