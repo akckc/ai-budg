@@ -64,7 +64,7 @@ def init_db():
     """)
     conn.execute("""    
         CREATE TABLE IF NOT EXISTS category_rules (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY DEFAULT nextval('category_rules_id_seq'),
             pattern VARCHAR NOT NULL,
             min_amount DECIMAL(10,2),
             max_amount DECIMAL(10,2),
