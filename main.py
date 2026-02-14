@@ -72,7 +72,7 @@ def get_db():
 
 
 # LEGACY: transitional in-memory buffer. 
-latest_transactions = []
+#latest_transactions = []
 
 @app.get("/health/ollama")
 def ollama_health():
@@ -270,6 +270,7 @@ def categorize_pending(limit: int = 20):
             length(pattern) DESC,
             min_amount DESC
     """).fetchall()
+    
 
 
     rows = conn.execute("""
@@ -298,6 +299,33 @@ def categorize_pending(limit: int = 20):
     if not rows:
         conn.close()
         return {"status": "nothing to categorize"}
+    rule_updated = 0
+remaining_rows = []
+
+for txn in rows:
+    txn_id, date, desc, amount = txn
+    matched = False
+
+    for rule in rules:
+        pattern, min_amt, max_amt, category = rule
+
+        if pattern.lower() in desc.lower():
+            if (min_amt is None or amount >= min_amt) and \
+               (max_amt is None or amount <= max_amt):
+
+                conn.execute("""
+                    UPDATE transactions
+                    SET category = ?
+                    WHERE id = ?
+                """, [category, txn_id])
+
+                rule_updated += 1
+                matched = True
+                break
+
+    if not matched:
+        remaining_rows.append(txn)
+
 
     # Build prompt
     lines = []
@@ -387,71 +415,6 @@ Transactions:
     "via_rules": len(resolved_ids),
     "via_llm": updated
 }
-
-
-@app.post("/transactions/save")
-def save_transactions():
-    """
-    Persist 'latest_transactions' into the DuckDB database in a safe,
-    non-destructive way. This is a transitional endpoint and will be removed
-    once uploads write directly to the DB.
-    """
-
-    if not latest_transactions:
-        return {"error": "No transactions to save."}
-
-    conn = get_db()
-
-    inserted = 0
-    skipped = 0
-
-    for txn in latest_transactions:
-        # Check for an existing match
-        exists = conn.execute("""
-            SELECT 1 FROM transactions
-            WHERE date = ?
-              AND description = ?
-              AND amount = ?
-              AND balance = ?
-        """, [
-            txn.get("date"),
-            txn.get("description"),
-            txn.get("amount"),
-            txn.get("balance")
-        ]).fetchone()
-
-        if exists:
-            skipped += 1
-            continue
-
-        conn.execute("""
-            INSERT INTO transactions (
-                date,
-                description,
-                amount,
-                balance,
-                category,
-                source
-            ) VALUES (?, ?, ?, ?, ?, 'upload')
-        """, [
-            txn.get("date"),
-            txn.get("description"),
-            txn.get("amount"),
-            txn.get("balance"),
-            txn.get("category")
-        ])
-        inserted += 1
-
-    total_in_db = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
-    conn.close()
-
-    return {
-        "success": True,
-        "inserted": inserted,
-        "skipped": skipped,
-        "total_in_db": total_in_db,
-        "note": "This endpoint is transitional and will be removed."
-    }
 
 
 
@@ -1272,7 +1235,6 @@ async def upload_page():
             
             <button class="button button-success" onclick="downloadResults()">Download Categorized CSV</button>
 	  <button class="button button-success" onclick="downloadResults()">Download Categorized CSV</button>
-	  <button class="button" onclick="saveToDatabase()">Save to Database</button>
 	  <button class="button" onclick="loadFromDatabase()">Load from Database</button>
 	  <button class="button" onclick="showStats()">View Statistics</button> 
         </div>
@@ -1402,7 +1364,7 @@ async def upload_page():
                                     class="category-input" 
                                     value="${txn.category || ''}" 
                                     list="categories-${originalIdx}"
-                                    onchange="updateCategory(${originalIdx}, this.value)"
+                                    onchange="updateCategory(${txn.id}, this.value)"
                                     placeholder="Enter category">
                                 <datalist id="categories-${originalIdx}">
                                     ${Array.from(allCategories).sort().map(cat => 
@@ -1419,75 +1381,24 @@ async def upload_page():
             document.getElementById('transactionsTable').innerHTML = html;
         }
         
-        async function updateCategory(index, newCategory) {
-            try {
-                const response = await fetch(`/transactions/update-category?transaction_index=${index}&new_category=${encodeURIComponent(newCategory)}`, {
-                    method: 'PUT'
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    transactions[index].category = newCategory;
-                    updateCategories();
-                    showStatus(`Updated: ${result.description.substring(0, 50)}... → ${newCategory}`, 'success');
-                    setTimeout(() => {
-                        document.getElementById('uploadStatus').style.display = 'none';
-                    }, 2000);
-                }
-            } catch (error) {
-                showStatus('Error updating category: ' + error.message, 'error');
-            }
-        }
-        
-        function filterTransactions() {
-            const categoryFilter = document.getElementById('categoryFilter').value;
-            const searchText = document.getElementById('searchBox').value.toLowerCase();
-            
-            let filtered = transactions;
-            
-            if (categoryFilter) {
-                filtered = filtered.filter(t => t.category === categoryFilter);
-            }
-            
-            if (searchText) {
-                filtered = filtered.filter(t => 
-                    t.description.toLowerCase().includes(searchText)
-                );
-            }
-            
-            displayTransactions(filtered);
-        }
-        
-        function downloadResults() {
-            let csv = 'Date,Description,Amount,Balance,Category\\n';
-            
-            transactions.forEach(txn => {
-                csv += `"${txn.date}","${txn.description}",${txn.amount},${txn.balance},"${txn.category}"\\n`;
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'categorized_transactions.csv';
-            a.click();
-        }
-async function saveToDatabase() {
-    try {
-        showStatus('Saving to database...', 'info');
-        const response = await fetch('/transactions/save', { method: 'POST' });
-        const result = await response.json();
-        
-        if (result.success) {
-            showStatus(`✓ ${result.message}`, 'success');
-        } else {
-            showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
-        }
-    } catch (error) {
-        showStatus('Error saving: ' + error.message, 'error');
+async function updateCategory(transactionId, newCategory) {
+  try {
+    const response = await fetch(
+      `/transactions/${transactionId}/category?category=${encodeURIComponent(newCategory)}`,
+      { method: 'PUT' }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to update category');
     }
+
+    showStatus('Category updated', 'success');
+  } catch (error) {
+    showStatus('Error updating category: ' + error.message, 'error');
+  }
 }
+
+
 
 async function loadFromDatabase() {
     try {
@@ -1581,3 +1492,16 @@ def update_transaction_category(
         "status": "updated"
     }
 
+@app.put("/transactions/{transaction_id}/category")
+def update_transaction_category(transaction_id: int, category: str):
+    conn = get_db()
+
+    result = conn.execute("""
+        UPDATE transactions
+        SET category = ?
+        WHERE id = ?
+    """, [category, transaction_id])
+
+    conn.close()
+
+    return {"success": True}
