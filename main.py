@@ -10,9 +10,18 @@ from typing import List, Dict, Any
 import json
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from typing import Optional
+
+class RuleCreate(BaseModel):
+    pattern: str
+    category: str
+    min_amount: Optional[float] = None
+    max_amount: Optional[float] = None
 
 class CategoryUpdate(BaseModel):
     category: str
+
+
 
 app = FastAPI()
 @app.on_event("startup")
@@ -118,6 +127,47 @@ def add_manual_transaction(txn: dict):
     conn.close()
 
     return {"success": True}
+
+@app.post("/rules/add")
+def add_category_rule(rule: RuleCreate):
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO category_rules (pattern, min_amount, max_amount, category)
+        VALUES (?, ?, ?, ?)
+    """, [rule.pattern.strip(), rule.min_amount, rule.max_amount, rule.category.strip()])
+    conn.close()
+    return {
+        "status": "rule added",
+        "rule": rule.dict()
+    }
+
+@app.get("/rules/list")
+def list_rules():
+    conn = get_db()
+
+    rows = conn.execute("""
+        SELECT id, pattern, min_amount, max_amount, category
+        FROM category_rules
+        ORDER BY pattern
+    """).fetchall()
+
+    conn.close()
+
+    rules = [
+        {
+            "id": r[0],
+            "pattern": r[1],
+            "min_amount": r[2],
+            "max_amount": r[3],
+            "category": r[4]
+        }
+        for r in rows
+    ]
+
+    return {
+        "count": len(rules),
+        "rules": rules
+    }
 
 @app.post("/upload/csv")
 def upload_csv(file: UploadFile = File(...)):
