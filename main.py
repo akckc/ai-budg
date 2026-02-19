@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional
 from fastapi.responses import RedirectResponse
+from fastapi import Form from fastapi.responses import RedirectResponse
 
 class RuleCreate(BaseModel):
     pattern: str
