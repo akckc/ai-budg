@@ -1213,3 +1213,24 @@ def dashboard(request: Request):
         "net": round(income + expenses, 2),
         "categories": categories
     })
+
+from fastapi import Form
+from fastapi.responses import RedirectResponse
+
+@app.post("/add-transaction")
+def add_transaction(
+    date: str = Form(...),
+    description: str = Form(...),
+    amount: float = Form(...),
+    category: str = Form(None)
+):
+    conn = get_db()
+
+    conn.execute("""
+        INSERT INTO transactions (date, description, amount, category)
+        VALUES (?, ?, ?, ?)
+    """, (date, description, amount, category or "Uncategorized"))
+
+    conn.commit()
+
+    return RedirectResponse(url="/dashboard", status_code=303)
