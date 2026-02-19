@@ -1648,7 +1648,7 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
     conn = get_db()
-
+    print(conn.execute("SELECT COUNT(*) FROM transactions").fetchone())
     # Current balance
     balance_row = conn.execute("""
         SELECT balance
