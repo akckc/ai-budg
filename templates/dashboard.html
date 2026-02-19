@@ -15,6 +15,10 @@
 
 <h1>Household Budget Dashboard</h1>
 <div class="card">
+    <h2>Current Balance</h2>
+    <h1>${{ "%.2f"|format(current_balance) }}</h1>
+</div>
+<div class="card">
     <h3>Add Transaction</h3>
     <form method="post" action="/add-transaction">
         <input type="date" name="date" required>

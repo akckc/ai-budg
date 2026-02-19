@@ -1170,14 +1170,28 @@ def dashboard(request: Request):
     conn = get_db()
     print(conn.execute("SELECT COUNT(*) FROM transactions").fetchone())
     # Current balance
-    balance_row = conn.execute("""
-        SELECT balance
-        FROM transactions
-        ORDER BY date DESC, id DESC
-        LIMIT 1
+    result = conn.execute("""
+        SELECT COALESCE(SUM(amount), 0) FROM transactions
     """).fetchone()
 
-    current_balance = balance_row[0] if balance_row else 0
+    current_balance = result[0]
+
+    # Latest 10 transactions
+    transactions = conn.execute("""
+        SELECT date, description, amount, category
+        FROM transactions
+        ORDER BY date DESC
+        LIMIT 10
+    """).fetchall()
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {
+            "request": request,
+            "current_balance": current_balance,
+            "transactions": transactions
+        }
+    )
 
     # This month income
     income = conn.execute("""
@@ -1227,8 +1241,8 @@ def add_transaction(
     conn = get_db()
 
     conn.execute("""
-        INSERT INTO transactions (date, description, amount, category)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO transactions (date, description, amount, category, source)
+        VALUES (?, ?, ?, ?, 'manual')
     """, (date, description, amount, category or "Uncategorized"))
 
     conn.commit()
