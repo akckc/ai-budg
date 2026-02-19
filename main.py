@@ -1184,7 +1184,7 @@ def dashboard(request: Request):
             COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
             COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses
         FROM transactions
-        WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        WHERE date >= date_trunc('month', CURRENT_DATE)
     """).fetchone()
 
     monthly_income = monthly[0]
@@ -1196,7 +1196,7 @@ def dashboard(request: Request):
         SELECT category, SUM(amount) as total
         FROM transactions
         WHERE amount < 0
-        AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        AND date >= date_trunc('month', CURRENT_DATE)
         GROUP BY category
         ORDER BY total ASC
     """).fetchall()
