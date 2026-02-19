@@ -1168,13 +1168,36 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
     conn = get_db()
-    print(conn.execute("SELECT COUNT(*) FROM transactions").fetchone())
+
     # Current balance
     result = conn.execute("""
         SELECT COALESCE(SUM(amount), 0) FROM transactions
     """).fetchone()
 
     current_balance = result[0]
+
+    # Monthly income / expenses (SQLite version)
+    monthly = conn.execute("""
+        SELECT
+            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+            COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses
+        FROM transactions
+        WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+    """).fetchone()
+
+    monthly_income = monthly[0]
+    monthly_expenses = monthly[1]
+    monthly_net = monthly_income + monthly_expenses
+
+    # Spending by category (this month)
+    categories = conn.execute("""
+        SELECT category, SUM(amount) as total
+        FROM transactions
+        WHERE amount < 0
+        AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        GROUP BY category
+        ORDER BY total ASC
+    """).fetchall()
 
     # Latest 10 transactions
     transactions = conn.execute("""
@@ -1189,47 +1212,14 @@ def dashboard(request: Request):
         {
             "request": request,
             "current_balance": current_balance,
+            "monthly_income": monthly_income,
+            "monthly_expenses": monthly_expenses,
+            "monthly_net": monthly_net,
+            "categories": categories,
             "transactions": transactions
         }
     )
 
-    # This month income
-    income = conn.execute("""
-        SELECT COALESCE(SUM(amount),0)
-        FROM transactions
-        WHERE amount > 0
-        AND date >= date_trunc('month', CURRENT_DATE)
-    """).fetchone()[0]
-
-    # This month expenses
-    expenses = conn.execute("""
-        SELECT COALESCE(SUM(amount),0)
-        FROM transactions
-        WHERE amount < 0
-        AND date >= date_trunc('month', CURRENT_DATE)
-    """).fetchone()[0]
-
-    # Spending by category
-    categories = conn.execute("""
-        SELECT category, SUM(amount) as total
-        FROM transactions
-        WHERE amount < 0
-        AND date >= date_trunc('month', CURRENT_DATE)
-        GROUP BY category
-        ORDER BY total ASC
-    """).fetchall()
-
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "balance": round(current_balance, 2),
-        "income": round(income, 2),
-        "expenses": round(expenses, 2),
-        "net": round(income + expenses, 2),
-        "categories": categories
-    })
-
-from fastapi import Form
-from fastapi.responses import RedirectResponse
 
 @app.post("/add-transaction")
 def add_transaction(
