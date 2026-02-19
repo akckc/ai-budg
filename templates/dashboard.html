@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budget Dashboard</title>
+    <style>
+        body { font-family: Arial; padding: 30px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+        h1 { margin-bottom: 30px; }
+        .big { font-size: 28px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+<h1>Household Budget Dashboard</h1>
+
+<div class="card">
+    <div>Current Balance</div>
+    <div class="big">${{ balance }}</div>
+</div>
+
+<div class="card">
+    <div>This Month</div>
+    <p>Income: ${{ income }}</p>
+    <p>Expenses: ${{ expenses }}</p>
+    <p><strong>Net: ${{ net }}</strong></p>
+</div>
+
+<div class="card">
+    <div>Spending by Category</div>
+    <table>
+        <tr>
+            <th>Category</th>
+            <th>Total</th>
+        </tr>
+        {% for category, total in categories %}
+        <tr>
+            <td>{{ category }}</td>
+            <td>${{ total }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>

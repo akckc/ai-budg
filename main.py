@@ -1638,3 +1638,58 @@ def rules_page():
     </body>
     </html>
     """
+from fastapi.responses import HTMLResponse
+from fastapi import Request
+from fastapi.templating import Jinja2Templates
+from datetime import date
+
+templates = Jinja2Templates(directory="templates")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request):
+    conn = get_db()
+
+    # Current balance
+    balance_row = conn.execute("""
+        SELECT balance
+        FROM transactions
+        ORDER BY date DESC, id DESC
+        LIMIT 1
+    """).fetchone()
+
+    current_balance = balance_row[0] if balance_row else 0
+
+    # This month income
+    income = conn.execute("""
+        SELECT COALESCE(SUM(amount),0)
+        FROM transactions
+        WHERE amount > 0
+        AND date >= date_trunc('month', CURRENT_DATE)
+    """).fetchone()[0]
+
+    # This month expenses
+    expenses = conn.execute("""
+        SELECT COALESCE(SUM(amount),0)
+        FROM transactions
+        WHERE amount < 0
+        AND date >= date_trunc('month', CURRENT_DATE)
+    """).fetchone()[0]
+
+    # Spending by category
+    categories = conn.execute("""
+        SELECT category, SUM(amount) as total
+        FROM transactions
+        WHERE amount < 0
+        AND date >= date_trunc('month', CURRENT_DATE)
+        GROUP BY category
+        ORDER BY total ASC
+    """).fetchall()
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "balance": round(current_balance, 2),
+        "income": round(income, 2),
+        "expenses": round(expenses, 2),
+        "net": round(income + expenses, 2),
+        "categories": categories
+    })
