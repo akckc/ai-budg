@@ -1201,7 +1201,7 @@ def dashboard(request: Request):
         ORDER BY total ASC
     """).fetchall()
     category_labels = [row[0] for row in categories]
-    category_totals = [abs(row[1]) for row in categories]
+    category_totals = [float(abs(row[1])) for row in categories]
     # Latest 10 transactions
     transactions = conn.execute("""
         SELECT date, description, amount, category
