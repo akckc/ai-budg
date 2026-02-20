@@ -1231,6 +1231,13 @@ def dashboard(request: Request):
         GROUP BY category
         ORDER BY total ASC
     """).fetchall()
+
+    recent_transactions = conn.execute("""
+    SELECT date, description, amount, category
+    FROM transactions
+    ORDER BY id DESC
+    LIMIT 5
+    """).fetchall()
     
 
     return templates.TemplateResponse(
@@ -1244,6 +1251,7 @@ def dashboard(request: Request):
             "categories": categories,
             "transactions": transactions,
             "category_labels": category_labels,
+            "recent_transactions": recent_transactions,
             "category_totals": category_totals
         }
     )
