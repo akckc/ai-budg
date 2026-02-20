@@ -1243,7 +1243,7 @@ def dashboard(request: Request):
             "monthly_net": monthly_net,
             "categories": categories,
             "transactions": transactions,
-            "category_labels"; category_labels,
+            "category_labels": category_labels,
             "category_totals": category_totals
         }
     )
