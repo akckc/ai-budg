@@ -1200,7 +1200,8 @@ def dashboard(request: Request):
         GROUP BY category
         ORDER BY total ASC
     """).fetchall()
-
+    category_labels = [row[0] for row in categories]
+    category_totals = [abs(row[1]) for row in categories]
     # Latest 10 transactions
     transactions = conn.execute("""
         SELECT date, description, amount, category
@@ -1208,6 +1209,26 @@ def dashboard(request: Request):
         ORDER BY date DESC
         LIMIT 10
     """).fetchall()
+    # This month income + expenses
+    monthly = conn.execute("""
+        SELECT
+            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+            COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses
+        FROM transactions
+        WHERE date >= date_trunc('month', CURRENT_DATE)
+    """).fetchone()
+
+    income = monthly[0]
+    expenses = monthly[1]
+    net = income + expenses
+
+    # Spending by category
+    categories = conn.execute("""
+        SELECT category, SUM(amount) as total
+        FROM transactions
+        WHERE amount < 0
+        AND date >= date_trunc('month', CURRENT_DATE)
+    
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -1218,7 +1239,9 @@ def dashboard(request: Request):
             "monthly_expenses": monthly_expenses,
             "monthly_net": monthly_net,
             "categories": categories,
-            "transactions": transactions
+            "transactions": transactions,
+            "category_labels"; category_labels,
+            "category_totals": category_totals
         }
     )
 
