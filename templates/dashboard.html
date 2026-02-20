@@ -10,6 +10,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; border-bottom: 1px solid #ddd; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -51,6 +52,9 @@
         {% endfor %}
     </table>
 </div>
-
+<div class="card">
+    <h3>Spending Breakdown (This Month)</h3>
+    <canvas id="categoryChart"></canvas>
+</div>
 </body>
 </html>
