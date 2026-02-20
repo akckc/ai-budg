@@ -68,6 +68,8 @@
 
     new Chart(ctx, {
         type: 'pie',
+        width: 400,
+        height: 400,
         data: {
             labels: {{ category_labels | tojson }},
             datasets: [{
