@@ -6,6 +6,11 @@ from db import get_db
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
+@router.get("/")
+def root():
+    return RedirectResponse(url="/dashboard")
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request):
     conn = get_db()
