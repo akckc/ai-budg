@@ -1,3 +1,16 @@
+from fastapi import FastAPI
+from db import init_db
+from routes.dashboard import router as dashboard_router
+from routes.transactions import router as transactions_router
+
+app = FastAPI()
+
+init_db()
+
+app.include_router(dashboard_router)
+app.include_router(transactions_router)
+
+'''
 from fastapi import FastAPI, UploadFile, File
 import duckdb
 from pathlib import Path
@@ -14,6 +27,10 @@ from typing import Optional
 from fastapi.responses import RedirectResponse
 from fastapi import Form 
 from fastapi.responses import RedirectResponse
+from db import init_db,get_db
+from routes.dashboard import dashboard_router
+from routes.transactions import transactions_router
+
 
 class RuleCreate(BaseModel):
     pattern: str
@@ -35,52 +52,8 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 # Database setup
 DB_PATH = "/app/data/budget.db"
 
-def init_db():
-    conn = get_db()
+init_db()
 
-    conn.execute("""
-        CREATE SEQUENCE IF NOT EXISTS transactions_id_seq
-        START 1
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY DEFAULT nextval('transactions_id_seq'),
-
-            date DATE NOT NULL,
-            description VARCHAR NOT NULL,
-            amount DECIMAL(10,2) NOT NULL,
-            balance DECIMAL(10,2),
-            category VARCHAR,
-
-            source VARCHAR NOT NULL DEFAULT 'unknown',
-
-            account_id INTEGER NULL,
-            user_id INTEGER NULL,
-            merchant_id INTEGER NULL,
-
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE SEQUENCE IF NOT EXISTS category_rules_id_seq START 1;
-    """)
-    conn.execute("""    
-        CREATE TABLE IF NOT EXISTS category_rules (
-            id INTEGER PRIMARY KEY DEFAULT nextval('category_rules_id_seq'),
-            pattern VARCHAR NOT NULL,
-            min_amount DECIMAL(10,2),
-            max_amount DECIMAL(10,2),
-            category VARCHAR NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    conn.close()
-
-def get_db():
-    conn = duckdb.connect(DB_PATH)
-    return conn
 
 
 
@@ -102,37 +75,7 @@ def ollama_health():
     )
     return r.json()
 
-@app.post("/transactions/manual")
-def add_manual_transaction(txn: dict):
-    required = ["date", "description", "amount", "category","source"]
-    for field in required:
-        if field not in txn:
-            return {"error": f"Missing required field: {field}"}
 
-    conn = get_db()
-
-    conn.execute("""
-        INSERT INTO transactions (
-            date,
-            description,
-            amount,
-            category,
-            source,
-            account_id,
-            user_id
-        ) VALUES (?, ?, ?, ?, 'manual', ?, ?)
-    """, [
-        txn["date"],
-        txn["description"].strip(),
-        txn["amount"],
-        txn["category"].strip(),
-        txn.get("account_id"),
-        txn.get("user_id")
-    ])
-
-    conn.close()
-
-    return {"success": True}
 
 @app.post("/rules/add")
 def add_category_rule(rule: RuleCreate):
@@ -458,75 +401,7 @@ Transactions:
 
 
 
-@app.get("/transactions/from-db")
-def get_transactions_from_db():
-    """Retrieve all transactions from DuckDB"""
-    conn = get_db()
-    
-    result = conn.execute("""
-        SELECT id, date, description, amount, balance, category, created_at
-        FROM transactions
-        ORDER BY date DESC
-    """).fetchall()
-    
-    columns = ['id', 'date', 'description', 'amount', 'balance', 'category', 'created_at']
-    transactions = [dict(zip(columns, row)) for row in result]
-    
-    conn.close()
-    
-    return {
-        "transaction_count": len(transactions),
-        "transactions": transactions
-    }
 
-@app.get("/transactions/stats")
-def get_transaction_stats():
-    """Get spending statistics by category"""
-    conn = get_db()
-    
-    # Total by category
-    category_totals = conn.execute("""
-        SELECT 
-            category,
-            COUNT(*) as transaction_count,
-            SUM(amount) as total_amount,
-            AVG(amount) as avg_amount
-        FROM transactions
-        WHERE category IS NOT NULL
-        GROUP BY category
-        ORDER BY total_amount ASC
-    """).fetchall()
-    
-    # Overall stats
-    overall = conn.execute("""
-        SELECT 
-            COUNT(*) as total_transactions,
-            SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) as total_spent,
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as total_income,
-            MIN(date) as earliest_date,
-            MAX(date) as latest_date
-        FROM transactions
-    """).fetchone()
-    
-    conn.close()
-    
-    return {
-        "by_category": [
-            {
-                "category": row[0],
-                "count": row[1],
-                "total": float(row[2]),
-                "average": float(row[3])
-            }
-            for row in category_totals
-        ],
-        "overall": {
-            "total_transactions": overall[0],
-            "total_spent": float(overall[1]) if overall[1] else 0,
-            "total_income": float(overall[2]) if overall[2] else 0,
-            "date_range": f"{overall[3]} to {overall[4]}" if overall[3] else None
-        }
-    }
 @app.get("/")
 def root():
     return RedirectResponse(url="/dashboard")
@@ -1026,45 +901,9 @@ async function showStats() {
 </body>
 </html>
     """
-@app.post("/transactions/{transaction_id}/category")
-def update_transaction_category(
-    transaction_id: int,
-    update: CategoryUpdate
-):
-    with duckdb.connect(DB_PATH) as con:
-        result = con.execute(
-            """
-            UPDATE transactions
-            SET category = ?
-            WHERE id = ?
-            RETURNING id, category
-            """,
-            [update.category, transaction_id]
-        ).fetchone()
 
-    if result is None:
-        return {"error": "Transaction not found"}
 
-    return {
-        "id": result[0],
-        "category": result[1],
-        "status": "updated"
-    }
 
-@app.put("/transactions/{transaction_id}/category")
-def update_transaction_category(transaction_id: int, category: str):
-    conn = get_db()
-
-    result = conn.execute("""
-        UPDATE transactions
-        SET category = ?
-        WHERE id = ?
-    """, [category, transaction_id])
-
-    conn.close()
-
-    return {"success": True}
-from fastapi.responses import HTMLResponse
 
 @app.get("/rules", response_class=HTMLResponse)
 def rules_page():
@@ -1178,66 +1017,6 @@ def dashboard(request: Request):
 
     current_balance = result[0]
 
-    # Monthly income / expenses (SQLite version)
-    monthly = conn.execute("""
-        SELECT
-            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
-            COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses
-        FROM transactions
-        WHERE date >= date_trunc('month', CURRENT_DATE)
-    """).fetchone()
-
-    monthly_income = monthly[0]
-    monthly_expenses = monthly[1]
-    monthly_net = monthly_income + monthly_expenses
-
-    # Spending by category (this month)
-    categories = conn.execute("""
-        SELECT category, SUM(amount) as total
-        FROM transactions
-        WHERE amount < 0
-        AND date >= date_trunc('month', CURRENT_DATE)
-        GROUP BY category
-        ORDER BY total ASC
-    """).fetchall()
-    category_labels = [row[0] for row in categories]
-    category_totals = [float(abs(row[1])) for row in categories]
-    # Latest 10 transactions
-    transactions = conn.execute("""
-        SELECT date, description, amount, category
-        FROM transactions
-        ORDER BY date DESC
-        LIMIT 10
-    """).fetchall()
-    # This month income + expenses
-    monthly = conn.execute("""
-        SELECT
-            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
-            COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses
-        FROM transactions
-        WHERE date >= date_trunc('month', CURRENT_DATE)
-    """).fetchone()
-
-    income = monthly[0]
-    expenses = monthly[1]
-    net = income + expenses
-
-    # Spending by category
-    categories = conn.execute("""
-        SELECT category, SUM(amount) as total
-        FROM transactions
-        WHERE amount < 0
-        AND date >= date_trunc('month', CURRENT_DATE)
-        GROUP BY category
-        ORDER BY total ASC
-    """).fetchall()
-
-    recent_transactions = conn.execute("""
-    SELECT date, description, amount, category
-    FROM transactions
-    ORDER BY id DESC
-    LIMIT 5
-    """).fetchall()
     
 
     return templates.TemplateResponse(
@@ -1259,21 +1038,4 @@ def dashboard(request: Request):
         }
     )
 
-
-@app.post("/add-transaction")
-def add_transaction(
-    date: str = Form(...),
-    description: str = Form(...),
-    amount: float = Form(...),
-    category: str = Form(None)
-):
-    conn = get_db()
-
-    conn.execute("""
-        INSERT INTO transactions (date, description, amount, category, source)
-        VALUES (?, ?, ?, ?, 'manual')
-    """, (date, description, amount, category or "Uncategorized"))
-
-    conn.commit()
-
-    return RedirectResponse(url="/dashboard", status_code=303)
+'''
