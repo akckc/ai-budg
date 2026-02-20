@@ -1228,6 +1228,9 @@ def dashboard(request: Request):
         FROM transactions
         WHERE amount < 0
         AND date >= date_trunc('month', CURRENT_DATE)
+        GROUP BY category
+        ORDER BY total ASC
+    """).fetchall()
     
 
     return templates.TemplateResponse(
