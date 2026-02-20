@@ -69,6 +69,9 @@ def dashboard(request: Request):
         ORDER BY total ASC
     """).fetchall()
 
+    category_labels = [row[0] for row in categories]
+    category_totals = [float(row[1]) for row in categories]
+
     recent_transactions = conn.execute("""
     SELECT date, description, amount, category
     FROM transactions
@@ -77,10 +80,22 @@ def dashboard(request: Request):
     """).fetchall()
     
 
+   
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
-            "current_balance": current_balance
+            "current_balance": current_balance,
+            "monthly_income": monthly_income,
+            "income": income,
+            "expenses": expenses,
+            "net": net,
+            "monthly_expenses": monthly_expenses,
+            "monthly_net": monthly_net,
+            "categories": categories,
+            "transactions": transactions,
+            "category_labels": category_labels,
+            "recent_transactions": recent_transactions,
+            "category_totals": category_totals
         }
     )
