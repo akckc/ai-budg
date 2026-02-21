@@ -1,26 +1,16 @@
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
+from fastapi import UploadFile, File
+from fastapi.responses import HTMLResponse
+import csv
+import io
+from datetime import datetime
 from db import get_db
 
 router = APIRouter()
 
-@router.post("/add-transaction")
-def add_transaction(
-    date: str = Form(...),
-    description: str = Form(...),
-    amount: float = Form(...),
-    category: str = Form(None)
-):
-    conn = get_db()
 
-    conn.execute("""
-        INSERT INTO transactions (date, description, amount, category, source)
-        VALUES (?, ?, ?, ?, 'manual')
-    """, (date, description, amount, category or "Uncategorized"))
 
-    conn.commit()
-
-    return RedirectResponse(url="/dashboard", status_code=303)
 
 @router.post("/transactions/manual")
 def add_manual_transaction(txn: dict):
@@ -67,7 +57,7 @@ def update_transaction_category(transaction_id: int, category: str):
     conn.close()
 
     return {"success": True}
-from fastapi.responses import HTMLResponse
+
 
 @router.get("/transactions/from-db")
 def get_transactions_from_db():
@@ -154,6 +144,7 @@ def add_transaction(
     """, (date, description, amount, category or "Uncategorized"))
 
     conn.commit()
+    conn.close()
 
     return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -659,7 +650,7 @@ def upload_csv(file: UploadFile = File(...)):
     skipped = 0
 
     for row in reader:
-        txn = normalize_row(row)  # ← your existing normalization logic
+        #txn = normalize_row(row)  # ← your existing normalization logic
 
         # Optional dedupe check (recommended)
         exists = conn.execute("""
