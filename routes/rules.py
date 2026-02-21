@@ -12,6 +12,7 @@ class RuleCreate(BaseModel):
 
 class CategoryUpdate(BaseModel):
     category: str
+router = APIRouter()
 
 @router.post("/rules/add")
 def add_category_rule(rule: RuleCreate):
