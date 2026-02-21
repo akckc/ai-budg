@@ -2,6 +2,7 @@ from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 from db import get_db
 from pydantic import BaseModel
+from typing import Optional, List
 
 class RuleCreate(BaseModel):
     pattern: str
