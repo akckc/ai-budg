@@ -1,4 +1,4 @@
-from repositories.transaction_repository import (
+from repositories.transactions_repository import (
     get_all_transactions,
     update_category,
 )

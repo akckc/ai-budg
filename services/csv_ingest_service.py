@@ -2,7 +2,7 @@ import csv
 import io
 from utils.money import parse_money
 from utils.dates import normalize_date
-from repositories.transaction_repository import (
+from repositories.transactions_repository import (
     transaction_exists,
     insert_transaction,
 )
