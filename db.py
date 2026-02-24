@@ -51,19 +51,18 @@ def init_db():
         # Transactions table
         conn.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY,
-            account_id INTEGER NOT NULL,
+            id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+            account_id BIGINT NOT NULL,
             date DATE NOT NULL,
-            description VARCHAR NOT NULL,
-            amount DECIMAL(10,2) NOT NULL,
-            balance DECIMAL(10,2),
-            category VARCHAR,
-            source VARCHAR NOT NULL DEFAULT 'unknown',
-            user_id INTEGER,
-            merchant_id INTEGER,
+            description TEXT NOT NULL,
+            amount DOUBLE NOT NULL,
+            balance DOUBLE,
+            category TEXT,
+            source TEXT,
+            user_id BIGINT,
+            merchant_id BIGINT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(account_id, date, description, amount),
-            FOREIGN KEY(account_id) REFERENCES accounts(id)
+            UNIQUE(account_id, date, description, amount)
         );
         """)
         log_info("Transactions table ensured.")
