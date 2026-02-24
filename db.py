@@ -49,7 +49,6 @@ def init_db():
         log_info("Accounts table ensured.")
 
         # Transactions table
-        conn.execute("""
         conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq;")
 
         conn.execute("""
