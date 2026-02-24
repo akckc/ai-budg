@@ -117,7 +117,30 @@
             {% endfor %}
         </table>
     </div>
+    <div class="dashboard-forecast">
+    <h3>Two-Week Outlook</h3>
+    <p>
+        Projected Balance: <strong>${{ projected_balance | round(2) }}</strong>
+    </p>
 
+    {% if upcoming_items %}
+        <ul>
+        {% for item in upcoming_items %}
+            <li>
+                {{ item.date.strftime("%b %d") }} —
+                {{ item.name }}: 
+                {% if item.amount >= 0 %}
+                    +${{ item.amount | round(2) }}
+                {% else %}
+                    -${{ (item.amount * -1) | round(2) }}
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No upcoming items in the next two weeks.</p>
+    {% endif %}
+    </div>
     <!-- Chart -->
     <div class="card" style="grid-column: span 2;">
         <h3>Spending Breakdown (This Month)</h3>

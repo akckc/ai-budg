@@ -104,3 +104,19 @@ def dashboard(request: Request):
             "category_totals": category_totals
         }
     )
+from datetime import date
+from services.forecast_service import calculate_two_week_forecast
+
+def dashboard(conn):
+    current_balance = conn.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM transactions"
+    ).fetchone()[0]
+
+    forecast = calculate_two_week_forecast(conn, date.today())
+
+    return render_template(
+        "dashboard.html",
+        current_balance=current_balance,
+        projected_balance=forecast['projected_balance'],
+        upcoming_items=forecast['items']
+    )
