@@ -3,10 +3,16 @@ from datetime import date, timedelta
 from math import ceil
 
 def get_active_recurring_events(conn):
-    return conn.execute("""
-        SELECT * FROM recurring_events
+    result = conn.execute("""
+        SELECT *
+        FROM recurring_events
         WHERE active = TRUE
-    """).fetchall()
+    """)
+
+    columns = [col[0] for col in result.description]
+    rows = result.fetchall()
+
+    return [dict(zip(columns, row)) for row in rows]
 
 def get_current_balance(conn):
     return conn.execute("SELECT COALESCE(SUM(amount),0) FROM transactions").fetchone()[0]
