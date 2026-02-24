@@ -93,8 +93,28 @@ def init_db():
         """)
         log_info("Default primary account ensured.")
 
+        #Recurring transactions table
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS recurring_transactions (
+        id BIGINT PRIMARY KEY,
+        account_id BIGINT NOT NULL,
+
+        name VARCHAR NOT NULL,
+        amount DOUBLE NOT NULL,
+        category VARCHAR,
+
+        frequency VARCHAR NOT NULL,  -- 'monthly' | 'biweekly'
+
+        day_of_month INTEGER,        -- monthly
+        anchor_date DATE NOT NULL,   -- biweekly reference
+
+        active BOOLEAN DEFAULT TRUE
+        );
+        """)
+        log_info("Recurring transactions table ensured.")
+    
     except Exception as e:
-        log_error(f"Error initializing DB: {e}")
+            log_error(f"Error initializing DB: {e}")
     finally:
-        conn.close()
-        log_info("Database setup complete and connection closed.")
+            conn.close()
+            log_info("Database setup complete and connection closed.")

@@ -63,6 +63,8 @@ def dashboard(request: Request):
         print("Forecast error:", e)
         projected_balance = 0.0
         upcoming_items = []
+    
+            
 
     return templates.TemplateResponse(
         "dashboard.html",

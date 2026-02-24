@@ -141,6 +141,30 @@
         <p>No upcoming items in the next two weeks.</p>
     {% endif %}
     </div>
+
+    <!-- Two-Week Forecast -->
+<div class="card" style="grid-column: span 2;">
+    <h3>Two-Week Forecast</h3>
+    <p>
+        Projected Balance: 
+        <strong 
+            style="color: {{ 'green' if projected_balance >= 0 else 'red' }};">
+            ${{ projected_balance | round(2) }}
+        </strong>
+    </p>
+    <p>Upcoming Items:</p>
+    <ul>
+        {% for item in upcoming_items %}
+        <li>
+            {{ item.date }} - {{ item.name }} : 
+            <span style="color: {{ 'green' if item.amount >= 0 else 'red' }}">
+                ${{ item.amount | round(2) }}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
     <!-- Chart -->
     <div class="card" style="grid-column: span 2;">
         <h3>Spending Breakdown (This Month)</h3>
