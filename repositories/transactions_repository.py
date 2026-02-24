@@ -1,44 +1,22 @@
-from db import get_db
+import duckdb
+from duckdb import IntegrityError
 
-def transaction_exists(date, description, amount, balance):
-    conn = get_db()
-    exists = conn.execute("""
-        SELECT 1 FROM transactions
-        WHERE date = ?
-          AND description = ?
-          AND amount = ?
-          AND balance = ?
-    """, [date, description, amount, balance]).fetchone()
-    conn.close()
-    return exists is not None
+DB_FILE = "budget.duckdb"
 
-
-def insert_transaction(date, description, amount, balance):
-    conn = get_db()
-    conn.execute("""
-        INSERT INTO transactions
-        (date, description, amount, balance, category, source)
-        VALUES (?, ?, ?, ?, NULL, 'csv')
-    """, [date, description, amount, balance])
-    conn.close()
-
-
-def get_all_transactions():
-    conn = get_db()
-    result = conn.execute("""
-        SELECT id, date, description, amount, balance, category
-        FROM transactions
-        ORDER BY date DESC
-    """).fetchall()
-    conn.close()
-    return result
-
-
-def update_category(transaction_id, category):
-    conn = get_db()
-    conn.execute("""
-        UPDATE transactions
-        SET category = ?
-        WHERE id = ?
-    """, [category, transaction_id])
-    conn.close()
+def insert_transaction(account_id: int, date, description: str, amount, balance=None, category=None, source="unknown", user_id=None, merchant_id=None):
+    """
+    Insert a transaction row into the DB.
+    Raises IntegrityError on UNIQUE constraint violation.
+    """
+    conn = duckdb.connect(DB_FILE)
+    try:
+        conn.execute(
+            """
+            INSERT INTO transactions 
+                (account_id, date, description, amount, balance, category, source, user_id, merchant_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (account_id, date, description, amount, balance, category, source, user_id, merchant_id)
+        )
+    finally:
+        conn.close()
