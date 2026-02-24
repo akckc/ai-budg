@@ -94,3 +94,19 @@ def get_all_transactions(conn, account_name=None, limit=None):
 
     rows = conn.execute(query, params).fetchall()
     return rows
+
+def update_category(conn, transaction_id, new_category):
+    """
+    Updates the category of a transaction.
+    - conn: DuckDB connection (from get_db() or passed in)
+    - transaction_id: ID of the transaction to update
+    - new_category: string, new category value
+    """
+    conn.execute(
+        """
+        UPDATE transactions
+        SET category = ?
+        WHERE id = ?
+        """,
+        (new_category, transaction_id)
+    )
