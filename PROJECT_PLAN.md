@@ -1,124 +1,74 @@
-# ============================================
-# Budget-AI — Canonical Project State
-# Phase 2: Stabilization & Architecture
-# ============================================
+============================================
+Budget-AI — Project Plan (Post Sprint 2)
+Phase 2: Platform Stabilization → Intelligence
+============================================
 
-# --------------------------------------------
-# Core Status
-# --------------------------------------------
+PHASE_1_COMPLETE = True # Structural refactor + service layer separation
+PHASE_2_FOUNDATION_COMPLETE = True # Multi-account + ingestion hardening
 
-core = {
-    "csv_ingestion": True,
-    "deduplication": True,
-    "dashboard_basic": True,
-    "demo_ready": True,
+------------------------------------------------
+Phase 2 Summary (Completed Work)
+------------------------------------------------
+
+PHASE_2_COMPLETED = {
+"multi_account_support": True,
+"accounts_table_introduced": True,
+"transactions_use_account_id": True,
+"default_account_bootstrap": True,
+"idempotent_csv_ingestion": True,
+"unique_constraint_enforced": True,
+"repository_layer_centralized": True,
+"duckdb_sequence_primary_keys": True,
+"persistent_container_storage": True,
 }
 
-# --------------------------------------------
-# Architecture Hardening
-# --------------------------------------------
+Current Platform Status:
+- Deterministic deduplication
+- Multi-account ready
+- Clean repository architecture
+- Container-persistent database
+- Low schema risk moving forward
+------------------------------------------------
+Phase 2 Remaining Focus (Intelligence Layer)
+------------------------------------------------
 
-architecture = {
-    "routes_are_thin": False,
-    "service_layer_extracted": False,
-    "normalization_module_clean": False,
-    "column_maps_configurable": False,
-    "db_schema_reviewed": False,
-    "error_handling_standardized": False,
+PHASE_2_NEXT = {
+"category_automation_engine": {
+"priority_rules": True,
+"automatic_assignment_on_ingest": True,
+"reclassification_endpoint": True,
+"deterministic_first_match_wins": True,
+}
 }
 
-# --------------------------------------------
-# Multi-Account Support
-# --------------------------------------------
+------------------------------------------------
+Upcoming Sprints
+------------------------------------------------
 
-multi_account = {
-    "account_name_in_transactions": True,
-    "dedupe_includes_account": True,
-    "column_map_per_account": False,
-    "account_table_created": False,
-    "account_metadata_supported": False,
+SPRINT_3 = "Category Automation Engine"
+SPRINT_4 = "Ingestion Transparency + Dashboard Filtering"
+SPRINT_5 = "Recurring Transactions Engine (Projection System)"
+SPRINT_6 = "Merchant Normalization Layer"
+
+------------------------------------------------
+Architectural Principles (Locked In)
+------------------------------------------------
+
+ARCHITECTURE = {
+"thin_routes": True,
+"service_layer_business_logic": True,
+"repository_layer_db_access_only": True,
+"schema_constraints_enforced": True,
+"idempotent_ingestion_required": True,
+"multi_account_first_class": True,
 }
 
-# --------------------------------------------
-# Reconciliation System (Upgrade)
-# --------------------------------------------
+------------------------------------------------
+Risk Profile
+------------------------------------------------
 
-reconciliation = {
-    "bank_statement_rename": False,
-    "unmatched_detection_clean": False,
-    "approve_flow_clean": False,
-    "reconciliation_ui_polished": False,
-}
+RISK_LEVEL = "LOW"
 
-# --------------------------------------------
-# Dashboard Metrics (Production Grade)
-# --------------------------------------------
-
-dashboard_metrics = {
-    "current_balance": True,
-    "monthly_income": True,
-    "monthly_expenses": True,
-    "category_breakdown": True,
-    "recurring_projection": False,
-    "account_filtering": False,
-}
-
-# --------------------------------------------
-# Recurring System
-# --------------------------------------------
-
-recurring = {
-    "table_exists": False,
-    "seed_data": False,
-    "dashboard_display": False,
-    "auto_projection_engine": False,
-}
-
-# --------------------------------------------
-# Rules Engine Evolution
-# --------------------------------------------
-
-rules_engine = {
-    "basic_rules_working": True,
-    "account_specific_rules": False,
-    "priority_ordering": False,
-    "rule_testing_mode": False,
-}
-
-# --------------------------------------------
-# Data Integrity & Safety
-# --------------------------------------------
-
-data_integrity = {
-    "schema_constraints_enforced": False,
-    "transactions_immutable": False,
-    "audit_fields_added": False,   # created_at, updated_at
-    "backup_strategy_defined": False,
-}
-
-# --------------------------------------------
-# Phase 2 Primary Focus
-# --------------------------------------------
-
-current_focus = """
-1. Extract proper service layer (routes thin, logic in services)
-2. Clean normalization module with configurable column maps
-3. Introduce account table for multi-account clarity
-4. Standardize error handling in ingestion pipeline
-5. Prepare recurring system foundation
-"""
-
-# --------------------------------------------
-# Philosophy
-# --------------------------------------------
-
-notes = """
-This is a personal, self-hosted budgeting backend.
-
-Guiding principles:
-- Keep it simple.
-- No overengineering.
-- Clean separation of concerns.
-- Stability before new features.
-- Design for multi-account future expansion.
-"""
+Infrastructure is stable.
+Safe to accelerate user-visible feature development.
+============================================
