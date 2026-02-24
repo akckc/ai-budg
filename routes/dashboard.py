@@ -82,3 +82,42 @@ def dashboard(request: Request):
             "upcoming_items": upcoming_items
         }
     )
+from fastapi import Form
+from fastapi.responses import RedirectResponse
+from repositories.accounts_repository import get_or_create_account
+from repositories.transactions_repository import insert_transaction
+
+# -------------------------
+# MANUAL TRANSACTION FORM SUBMISSION
+# -------------------------
+@router.post("/transactions/manual")
+def add_manual_transaction_form(
+    date: str = Form(...),
+    description: str = Form(...),
+    amount: float = Form(...),
+    category: str = Form(None),
+    account_name: str = Form("Primary Account"),
+):
+    """
+    Handles HTML form submission from dashboard add transaction card.
+    """
+    # Ensure account exists
+    account = get_or_create_account(account_name)
+    account_id = account["id"]
+
+    try:
+        insert_transaction(
+            account_id=account_id,
+            date=date,
+            description=description,
+            amount=amount,
+            balance=None,
+            category=category,
+            source="Manual",
+        )
+    except Exception as e:
+        # Could log here if desired
+        return {"success": False, "error": str(e)}
+
+    # Redirect back to dashboard after submission
+    return RedirectResponse(url="/dashboard", status_code=303)

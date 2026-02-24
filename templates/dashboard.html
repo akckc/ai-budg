@@ -80,11 +80,12 @@
     <!-- Add Transaction -->
     <div class="card">
         <h3>Add Transaction</h3>
-        <form method="post" action="/add-transaction">
+        <form method="post" action="/transactions/manual">
             <input type="date" name="date" required>
             <input type="text" name="description" placeholder="Description" required>
             <input type="number" step="0.01" name="amount" placeholder="Amount" required>
             <input type="text" name="category" placeholder="Category">
+            <input type="text" name="account_name" placeholder="Account Name" value="Primary Account" required>
             <button type="submit">Add</button>
         </form>
     </div>
