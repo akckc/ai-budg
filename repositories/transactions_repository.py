@@ -67,3 +67,30 @@ def transaction_exists(conn, account_name, date, description, amount):
     ).fetchone()
 
     return bool(row)
+def get_all_transactions(conn, account_name=None, limit=None):
+    """
+    Returns all transactions for a given account.
+    - conn: DuckDB connection
+    - account_name: optional, if None returns all accounts
+    - limit: optional, max number of rows
+    """
+    query = """
+    SELECT t.id, a.account_name, t.date, t.description, t.amount,
+           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    """
+    params = []
+
+    if account_name:
+        query += " WHERE a.account_name = ?"
+        params.append(account_name)
+
+    query += " ORDER BY t.date DESC"
+
+    if limit:
+        query += " LIMIT ?"
+        params.append(limit)
+
+    rows = conn.execute(query, params).fetchall()
+    return rows
