@@ -67,7 +67,7 @@ def init_db():
             UNIQUE(account_id, date, description, amount)
         );
         """)
-        """)
+        
         log_info("Transactions table ensured.")
 
         # Category rules table
