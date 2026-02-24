@@ -1,7 +1,7 @@
 import duckdb
 import logging
 
-DB_FILE = "budget.duckdb"
+DB_FILE = "data/budget.duckdb"
 
 # -----------------------------
 # Logging
@@ -50,8 +50,11 @@ def init_db():
 
         # Transactions table
         conn.execute("""
+        conn.execute("CREATE SEQUENCE IF NOT EXISTS transactions_id_seq;")
+
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
-            id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+            id BIGINT PRIMARY KEY DEFAULT nextval('transactions_id_seq'),
             account_id BIGINT NOT NULL,
             date DATE NOT NULL,
             description TEXT NOT NULL,
@@ -64,6 +67,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(account_id, date, description, amount)
         );
+        """)
         """)
         log_info("Transactions table ensured.")
 
