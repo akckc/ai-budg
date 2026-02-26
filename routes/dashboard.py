@@ -85,7 +85,7 @@ def dashboard(request: Request):
 from fastapi import Form
 from fastapi.responses import RedirectResponse
 from repositories.accounts_repository import get_or_create_account
-from repositories.transactions_repository import insert_transaction
+from services.transaction_service import add_transaction
 
 # -------------------------
 # MANUAL TRANSACTION FORM SUBMISSION
@@ -106,7 +106,7 @@ def add_manual_transaction_form(
     account_id = account["id"]
 
     try:
-        insert_transaction(
+        add_transaction(
             account_id=account_id,
             date=date,
             description=description,

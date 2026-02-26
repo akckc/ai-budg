@@ -4,29 +4,39 @@ from db import get_db
 # Transactions Repository
 # -----------------------------
 
-def insert_transaction(conn, account_name, date, description, amount,
+def insert_transaction(conn, date, description, amount,
                        balance=None, category=None, source='unknown',
-                       user_id=None, merchant_id=None):
+                       user_id=None, merchant_id=None,
+                       account_id=None, account_name=None):
     """
-    Inserts a transaction into the DB for the given account.
-    Raises ValueError if duplicate (unique constraint).
-    """
-    if not account_name:
-        account_name = "Primary Account"
+    Inserts a transaction into the DB.
 
-    # Ensure account exists
-    account_row = conn.execute(
-        "SELECT id FROM accounts WHERE account_name = ?", (account_name,)
-    ).fetchone()
-    if account_row:
-        account_id = account_row[0]
-    else:
-        conn.execute(
-            "INSERT INTO accounts (account_name) VALUES (?)", (account_name,)
-        )
-        account_id = conn.execute(
+    * If ``account_id`` is provided it will be used directly.  Otherwise the
+      account named by ``account_name`` (defaulting to "Primary Account") is
+      looked up/created and its id used.  The previous signature accepted an
+      explicit ``account_name`` positional argument; the new form is
+      backwards-compatible for callers that continue to pass ``conn`` as the
+      first argument and ``account_name`` as a keyword.
+
+    Raises ``ValueError`` on unique‑constraint violations.
+    """
+    # resolve account identifier
+    if account_id is None:
+        if not account_name:
+            account_name = "Primary Account"
+        # ensure account exists
+        account_row = conn.execute(
             "SELECT id FROM accounts WHERE account_name = ?", (account_name,)
-        ).fetchone()[0]
+        ).fetchone()
+        if account_row:
+            account_id = account_row[0]
+        else:
+            conn.execute(
+                "INSERT INTO accounts (account_name) VALUES (?)", (account_name,)
+            )
+            account_id = conn.execute(
+                "SELECT id FROM accounts WHERE account_name = ?", (account_name,)
+            ).fetchone()[0]
 
     try:
         conn.execute(

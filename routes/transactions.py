@@ -9,7 +9,11 @@ from services.transaction_service import (
     update_transaction_category,
 )
 from repositories.accounts_repository import get_or_create_account
-from repositories.transactions_repository import insert_transaction
+from services.transaction_service import (
+    get_all_transactions,
+    update_transaction_category,
+    add_transaction,
+)
 
 router = APIRouter()
 
@@ -94,7 +98,7 @@ def add_manual_transaction(tx: ManualTransaction):
     account_id = account["id"]
 
     try:
-        insert_transaction(
+        add_transaction(
             account_id=account_id,
             date=tx.date,
             description=tx.description,

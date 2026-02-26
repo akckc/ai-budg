@@ -3,7 +3,7 @@ import io
 import logging
 from duckdb import IntegrityError
 from db import get_db  # <-- use the new helper
-from repositories.transactions_repository import insert_transaction
+from services.transaction_service import add_transaction
 from utils.money import parse_money
 from utils.dates import normalize_date
 
@@ -48,9 +48,8 @@ def ingest_csv(contents: str):
             account_name = row.get("Account Name")  # optional, repository handles mapping
 
             # Insert transaction via repository (pass conn if repo supports it)
-            insert_transaction(
-                conn=conn,
-                account_name=account_name,
+            # delegate to service layer (handles connection lifecycle)
+            add_transaction(
                 date=date,
                 description=description,
                 amount=amount,
@@ -58,7 +57,8 @@ def ingest_csv(contents: str):
                 category=category,
                 source=source,
                 user_id=user_id,
-                merchant_id=merchant_id
+                merchant_id=merchant_id,
+                account_name=account_name,
             )
 
             row_result["success"] = True
