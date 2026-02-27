@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from datetime import date
 from db import get_db
 from services.forecast_service import calculate_two_week_forecast
+from services.projection_service import calculate_two_week_projection
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -54,13 +55,16 @@ def dashboard(request: Request):
         LIMIT 5
     """).fetchall()
 
-    # --- Two-week forecast ---
+    # --- Two-week projection (new deterministic engine) ---
     try:
+        projection = calculate_two_week_projection()
+        projected_balance = projection.timeline[-1].projected_balance
+        # still call legacy forecast service for item list so template
+        # remains unchanged
         forecast = calculate_two_week_forecast(conn, date.today())
-        projected_balance = forecast['projected_balance']
         upcoming_items = forecast['items']
     except Exception as e:
-        print("Forecast error:", e)
+        print("Projection error:", e)
         projected_balance = 0.0
         upcoming_items = []
     
