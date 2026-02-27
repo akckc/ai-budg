@@ -1,16 +1,29 @@
 ============================================
-Budget-AI — Project Plan (Post Sprint 2)
-Phase 2: Platform Stabilization → Intelligence
+Budget-AI — Project Plan (Post Sprint 3)
+DA Version: 1.1
+Phase 2 → Tier 0 Completion
 ============================================
 
-PHASE_1_COMPLETE = True # Structural refactor + service layer separation
-PHASE_2_FOUNDATION_COMPLETE = True # Multi-account + ingestion hardening
+PHASE_1_COMPLETE = True  # Structural refactor + service layer separation
+PHASE_2_FOUNDATION_COMPLETE = True  # Multi-account + ingestion hardening
+SPRINT_3_COMPLETE = True  # Recurring Events Engine (Template-Based)
 
 ------------------------------------------------
-Phase 2 Summary (Completed Work)
+Phase 1 Summary (Completed)
 ------------------------------------------------
 
-PHASE_2_COMPLETED = {
+PHASE_1 = {
+"thin_routes": True,
+"service_layer_enforced": True,
+"repository_layer_isolated": True,
+"db_access_centralized": True,
+}
+
+------------------------------------------------
+Phase 2 Summary (Completed)
+------------------------------------------------
+
+PHASE_2 = {
 "multi_account_support": True,
 "accounts_table_introduced": True,
 "transactions_use_account_id": True,
@@ -22,33 +35,72 @@ PHASE_2_COMPLETED = {
 "persistent_container_storage": True,
 }
 
-Current Platform Status:
-- Deterministic deduplication
-- Multi-account ready
-- Clean repository architecture
-- Container-persistent database
-- Low schema risk moving forward
 ------------------------------------------------
-Phase 2 Remaining Focus (Intelligence Layer)
+Sprint 3 Summary (Completed)
 ------------------------------------------------
 
-PHASE_2_NEXT = {
-"category_automation_engine": {
-"priority_rules": True,
-"automatic_assignment_on_ingest": True,
-"reclassification_endpoint": True,
-"deterministic_first_match_wins": True,
-}
+SPRINT_3 = {
+"recurring_events_table": True,
+"recurring_templates_stored_not_materialized": True,
+"frequency_support": ["daily", "weekly", "biweekly", "monthly"],
+"active_inactive_toggle": True,
+"account_aware_recurring": True,
+"pure_occurrence_generator": True,
+"no_transaction_injection": True,
+"deterministic_generation": True,
 }
 
+Key Guarantee:
+Recurring events are stored as templates.
+They are never written into transactions during forecast.
+
 ------------------------------------------------
-Upcoming Sprints
+Current Platform State
 ------------------------------------------------
 
-SPRINT_3 = "Category Automation Engine"
-SPRINT_4 = "Ingestion Transparency + Dashboard Filtering"
-SPRINT_5 = "Recurring Transactions Engine (Projection System)"
-SPRINT_6 = "Merchant Normalization Layer"
+PLATFORM_STATUS = {
+"ledger_authoritative": True,
+"multi_account_consistent": True,
+"deterministic_ingestion": True,
+"recurring_templates_ready": True,
+"forecast_engine_partial": True,  # Generator exists; projection timeline not complete
+"safe_to_spend_partial": True,    # Definition established; full projection merge pending
+}
+
+Infrastructure Risk Level: LOW
+Schema Risk Level: LOW
+Ready for Tier 0 forecast completion: YES
+
+------------------------------------------------
+Tier 0 Completion Roadmap
+------------------------------------------------
+
+NEXT_SPRINT = "Deterministic Two-Week Projection Engine"
+
+Objective:
+Merge:
+- Current ledger balance
+- Recurring event occurrences
+
+Produce:
+- Date-indexed projected balance (14 days)
+- Safe-to-Spend calculation (cash-flow authoritative)
+
+Constraints:
+- No DB mutation
+- Deterministic
+- Multi-account aggregated
+- Service-layer only logic
+
+------------------------------------------------
+Upcoming Sprints (Reordered for DA Alignment)
+------------------------------------------------
+
+SPRINT_4 = "Deterministic Projection Engine"
+SPRINT_5 = "Burndown Chart UI + Forecast Endpoint"
+SPRINT_6 = "Category Automation Engine"
+SPRINT_7 = "Ingestion Transparency + Dashboard Filtering"
+SPRINT_8 = "Merchant Normalization Layer"
 
 ------------------------------------------------
 Architectural Principles (Locked In)
@@ -56,11 +108,25 @@ Architectural Principles (Locked In)
 
 ARCHITECTURE = {
 "thin_routes": True,
-"service_layer_business_logic": True,
+"service_layer_business_logic_only": True,
 "repository_layer_db_access_only": True,
-"schema_constraints_enforced": True,
 "idempotent_ingestion_required": True,
 "multi_account_first_class": True,
+"deterministic_forecast_engine": True,
+"no_side_effects_in_reads": True,
+"ledger_is_source_of_truth": True,
+}
+
+------------------------------------------------
+System Invariants (From DA v1.1)
+------------------------------------------------
+
+INVARIANTS = {
+"ledger_authority": True,
+"deterministic_forecast": True,
+"reconciliation_safety": True,
+"budget_layer_advisory_only": True,
+"recurring_as_templates_only": True,
 }
 
 ------------------------------------------------
@@ -69,6 +135,8 @@ Risk Profile
 
 RISK_LEVEL = "LOW"
 
-Infrastructure is stable.
-Safe to accelerate user-visible feature development.
+Backend is stable.
+Schema stable.
+Recurring foundation implemented.
+Ready to complete Tier 0 Forecast capability.
 ============================================
