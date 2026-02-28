@@ -1,12 +1,14 @@
 ============================================
-Budget-AI — Project Plan (Post Sprint 3)
+Budget-AI — Project Plan (Post Sprint 5)
 DA Version: 1.1
 Phase 2 → Tier 0 Completion
 ============================================
 
-PHASE_1_COMPLETE = True  # Structural refactor + service layer separation
-PHASE_2_FOUNDATION_COMPLETE = True  # Multi-account + ingestion hardening
-SPRINT_3_COMPLETE = True  # Recurring Events Engine (Template-Based)
+PHASE_1_COMPLETE = True
+PHASE_2_FOUNDATION_COMPLETE = True
+SPRINT_3_COMPLETE = True
+SPRINT_4_COMPLETE = True
+SPRINT_5_COMPLETE = True
 
 ------------------------------------------------
 Phase 1 Summary (Completed)
@@ -78,6 +80,28 @@ Given identical ledger state, recurring templates, and as_of_date,
 forecast output is reproducible and side-effect free.
 
 ------------------------------------------------
+Sprint 5 Summary (Completed)
+------------------------------------------------
+
+SPRINT_5 = {
+"forecast_api_endpoint": True,
+"get_forecast_route_exposed": True,
+"optional_as_of_date_supported": True,
+"json_dto_layer_added": True,
+"burndown_chart_dashboard_integration": True,
+"safe_to_spend_visualized": True,
+"read_only_endpoint": True,
+"no_ledger_mutation": True,
+"no_schema_changes": True,
+"service_layer_logic_unchanged": True,
+}
+
+Key Guarantee:
+Forecast API and dashboard integration expose the existing
+deterministic projection engine without modifying financial logic.
+Endpoint is fully read-only and reproducible given identical inputs.
+
+------------------------------------------------
 Current Platform State
 ------------------------------------------------
 
@@ -88,42 +112,46 @@ PLATFORM_STATUS = {
 "recurring_templates_ready": True,
 "forecast_engine_complete": True,
 "safe_to_spend_complete": True,
+"burndown_chart_live": True,
 }
 
 Infrastructure Risk Level: LOW
 Schema Risk Level: LOW
-Ready for Tier 0 forecast completion: YES
+Tier 0 Status: FULLY COMPLETE
 
 ------------------------------------------------
-Tier 0 Completion Roadmap
+Tier 0 Completion Status
 ------------------------------------------------
 
-NEXT_SPRINT = "Deterministic Two-Week Projection Engine"
+Tier 0 (Non-Negotiable) Capabilities:
 
-Objective:
-Merge:
-- Current ledger balance
-- Recurring event occurrences
+✓ Manual transaction entry
+✓ Transaction edit/delete
+✓ CSV import with deduplication
+✓ Recurring transaction modeling
+✓ Deterministic 14-day forecast
+✓ Safe-to-Spend (cash-flow authoritative)
+✓ Multi-account consistency
+✓ Service layer enforcement
+✓ Reconciliation safety
 
-Produce:
-- Date-indexed projected balance (14 days)
-- Safe-to-Spend calculation (cash-flow authoritative)
-
-Constraints:
-- No DB mutation
-- Deterministic
-- Multi-account aggregated
-- Service-layer only logic
+All Tier 0 guarantees satisfied per DA v1.1.
 
 ------------------------------------------------
-Upcoming Sprints (Reordered for DA Alignment)
+Next Roadmap Phase — Tier 1 Enhancements
 ------------------------------------------------
 
-SPRINT_4 = "Deterministic Projection Engine"
-SPRINT_5 = "Burndown Chart UI + Forecast Endpoint"
 SPRINT_6 = "Category Automation Engine"
-SPRINT_7 = "Ingestion Transparency + Dashboard Filtering"
-SPRINT_8 = "Merchant Normalization Layer"
+SPRINT_7 = "Budget per Category + Spend Tracking"
+SPRINT_8 = "Visual Spend vs Budget"
+SPRINT_9 = "Ingestion Transparency + Filtering"
+SPRINT_10 = "Merchant Normalization Layer"
+
+Tier 2 (Future Intelligence):
+- AI trend analysis
+- Suggested budget corrections
+- Spending warnings
+- Predictive modeling
 
 ------------------------------------------------
 Architectural Principles (Locked In)
@@ -158,8 +186,8 @@ Risk Profile
 
 RISK_LEVEL = "LOW"
 
-Backend is stable.
+Backend stable.
 Schema stable.
-Recurring foundation implemented.
-Ready to complete Tier 0 Forecast capability.
+Tier 0 fully implemented.
+Ready to expand into Tier 1 experience features.
 ============================================
