@@ -7,13 +7,10 @@ from services.csv_ingest_service import ingest_csv
 from services.transaction_service import (
     get_all_transactions,
     update_transaction_category,
+    add_transaction,
+    reclassify_all_transactions,
 )
 from repositories.accounts_repository import get_or_create_account
-from services.transaction_service import (
-    get_all_transactions,
-    update_transaction_category,
-    add_transaction,
-)
 
 router = APIRouter()
 
@@ -111,3 +108,17 @@ def add_manual_transaction(tx: ManualTransaction):
         raise HTTPException(status_code=400, detail=f"Insert failed: {e}")
 
     return {"success": True, "message": "Transaction added"}
+
+
+# -------------------------
+# RECLASSIFY TRANSACTIONS
+# -------------------------
+
+@router.post("/transactions/reclassify")
+def reclassify():
+    """Re-apply category rules to all transactions deterministically.
+
+    Returns count of transactions updated.
+    """
+    updated_count = reclassify_all_transactions()
+    return {"success": True, "updated": updated_count}
