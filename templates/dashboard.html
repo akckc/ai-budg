@@ -176,7 +176,71 @@
 
 </div>
 
+    <!-- Burndown Chart -->
+    <div class="card" style="grid-column: span 2;">
+        <h3>14-Day Burndown Chart</h3>
+        <div style="width: 100%; height: 400px;">
+            <canvas id="burndownChart"></canvas>
+        </div>
+        <p style="margin-top: 10px; font-size: 0.9em;">
+            Safe-to-Spend in 14 days: <strong id="safe-to-spend-value">calculating...</strong>
+        </p>
+    </div>
+
 <script>
+    // Fetch forecast data and render burndown chart
+    async function loadBurndownChart() {
+        try {
+            const response = await fetch('/forecast');
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Forecast error:', data.error);
+                return;
+            }
+
+            const dates = data.timeline.map(day => day.date);
+            const balances = data.timeline.map(day => day.projected_balance);
+            
+            const burndownCtx = document.getElementById('burndownChart');
+            new Chart(burndownCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Projected Balance',
+                        data: balances,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Balance ($)' }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('safe-to-spend-value').textContent = 
+                '$' + data.safe_to_spend.toFixed(2);
+        } catch (error) {
+            console.error('Failed to load forecast:', error);
+        }
+    }
+
+    // Load burndown chart when page loads
+    document.addEventListener('DOMContentLoaded', loadBurndownChart);
+
     const ctx = document.getElementById('categoryChart');
 
     new Chart(ctx, {
