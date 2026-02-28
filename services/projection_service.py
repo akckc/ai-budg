@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import Optional
 from db import get_db
 from services.transaction_service import get_all_transactions
 from services.forecast_service import (
@@ -8,13 +9,14 @@ from services.forecast_service import (
 from models.projection_dto import DailyProjection, ProjectionResult
 
 
-def calculate_two_week_projection() -> ProjectionResult:
+def calculate_two_week_projection(as_of_date: Optional[date] = None) -> ProjectionResult:
     """Deterministic 14-day projection as defined by DA v1.1.
 
-    Pure function of ledger state, recurring templates, and ``date.today()``.
+    Pure function of ledger state, recurring templates, and an optional reference date.
+    If ``as_of_date`` is not provided, defaults to ``date.today()``.
     No writes, no side effects, inclusive window definition.
     """
-    today = date.today()
+    today = as_of_date if as_of_date is not None else date.today()
     end_date = today + timedelta(days=14)
 
     # --- starting balance via service/repository chain ---
