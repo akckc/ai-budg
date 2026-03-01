@@ -1,7 +1,7 @@
 ============================================
-Budget-AI — Project Plan (Post Sprint 5)
+Budget-AI — Project Plan (Post Sprint 6)
 DA Version: 1.1
-Phase 2 → Tier 0 Completion
+Phase 2 → Tier 1 Expansion
 ============================================
 
 PHASE_1_COMPLETE = True
@@ -9,6 +9,7 @@ PHASE_2_FOUNDATION_COMPLETE = True
 SPRINT_3_COMPLETE = True
 SPRINT_4_COMPLETE = True
 SPRINT_5_COMPLETE = True
+SPRINT_6_COMPLETE = True
 
 ------------------------------------------------
 Phase 1 Summary (Completed)
@@ -102,6 +103,29 @@ deterministic projection engine without modifying financial logic.
 Endpoint is fully read-only and reproducible given identical inputs.
 
 ------------------------------------------------
+Sprint 6 Summary (Completed)
+------------------------------------------------
+
+SPRINT_6 = {
+"deterministic_category_rule_engine": True,
+"pure_rule_evaluator": True,
+"stable_rule_ordering_by_id": True,
+"case_insensitive_substring_matching": True,
+"auto_category_on_manual_add": True,
+"auto_category_on_csv_import": True,
+"bulk_reclassification_endpoint": True,
+"no_financial_logic_changes": True,
+"no_forecast_modifications": True,
+"no_schema_changes_to_transactions": True,
+}
+
+Key Guarantee:
+Category automation is fully deterministic and rule-based.
+Rule evaluation is a pure function with stable ordering.
+No financial calculations, balances, forecasts, or reconciliation
+logic were modified.
+
+------------------------------------------------
 Current Platform State
 ------------------------------------------------
 
@@ -113,17 +137,17 @@ PLATFORM_STATUS = {
 "forecast_engine_complete": True,
 "safe_to_spend_complete": True,
 "burndown_chart_live": True,
+"deterministic_category_engine_live": True,
 }
 
 Infrastructure Risk Level: LOW
 Schema Risk Level: LOW
-Tier 0 Status: FULLY COMPLETE
+Tier 0 Status: COMPLETE
+Tier 1 Status: IN PROGRESS
 
 ------------------------------------------------
-Tier 0 Completion Status
+Tier 0 Completion Status (Locked)
 ------------------------------------------------
-
-Tier 0 (Non-Negotiable) Capabilities:
 
 ✓ Manual transaction entry
 ✓ Transaction edit/delete
@@ -138,10 +162,9 @@ Tier 0 (Non-Negotiable) Capabilities:
 All Tier 0 guarantees satisfied per DA v1.1.
 
 ------------------------------------------------
-Next Roadmap Phase — Tier 1 Enhancements
+Tier 1 Roadmap (Experience Layer)
 ------------------------------------------------
 
-SPRINT_6 = "Category Automation Engine"
 SPRINT_7 = "Budget per Category + Spend Tracking"
 SPRINT_8 = "Visual Spend vs Budget"
 SPRINT_9 = "Ingestion Transparency + Filtering"
@@ -164,6 +187,7 @@ ARCHITECTURE = {
 "idempotent_ingestion_required": True,
 "multi_account_first_class": True,
 "deterministic_forecast_engine": True,
+"deterministic_rule_engine": True,
 "no_side_effects_in_reads": True,
 "ledger_is_source_of_truth": True,
 }
@@ -178,6 +202,7 @@ INVARIANTS = {
 "reconciliation_safety": True,
 "budget_layer_advisory_only": True,
 "recurring_as_templates_only": True,
+"category_rules_deterministic": True,
 }
 
 ------------------------------------------------
@@ -189,5 +214,6 @@ RISK_LEVEL = "LOW"
 Backend stable.
 Schema stable.
 Tier 0 fully implemented.
-Ready to expand into Tier 1 experience features.
+Deterministic category automation complete.
+Ready to expand budgeting and visualization features.
 ============================================
