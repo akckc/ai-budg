@@ -5,6 +5,7 @@ from datetime import date
 from db import get_db
 from services.forecast_service import calculate_two_week_forecast
 from services.projection_service import calculate_two_week_projection
+from services.budget_service import get_spend_vs_budget_summary
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -22,6 +23,9 @@ def dashboard(request: Request):
     current_balance = conn.execute(
         "SELECT COALESCE(SUM(amount),0) FROM transactions"
     ).fetchone()[0]
+
+    # Spend vs budget summary (Sprint 8)
+    spend_vs_budget = get_spend_vs_budget_summary()
 
     # --- Monthly income / expenses ---
     monthly = conn.execute("""
@@ -83,7 +87,8 @@ def dashboard(request: Request):
             "category_totals": category_totals,
             "recent_transactions": recent_transactions,
             "projected_balance": projected_balance,
-            "upcoming_items": upcoming_items
+            "upcoming_items": upcoming_items,
+            "spend_vs_budget": spend_vs_budget,
         }
     )
 from fastapi import Form

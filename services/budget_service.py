@@ -4,6 +4,8 @@ from repositories.category_budgets_repository import (
     get_spend_grouped_by_category,
 )
 
+# repository import already includes spend aggregation; we'll use it for the new summary
+
 
 def set_category_budget(category_name: str, monthly_budget: float, active: bool = True) -> None:
     """
@@ -52,3 +54,42 @@ def get_category_budget_summary() -> list[dict]:
         )
 
     return summary
+
+
+# ------------------------------------------------------------------
+# New function for Sprint 8
+# ------------------------------------------------------------------
+
+def get_spend_vs_budget_summary() -> list[dict]:
+    """
+    Deterministic aggregation of total spend per category compared against
+    configured budget.
+
+    Returns a list of dictionaries containing:
+        category, budget, spent, remaining
+
+    Read-only. No side effects.
+    """
+    # reuse existing repository helpers; they open/close their own connections
+    budgets = get_all_category_budgets()
+    spend_entries = get_spend_grouped_by_category()
+
+    # build lookup maps
+    budget_map = {b["category_name"]: float(b["monthly_budget"] or 0.0) for b in budgets}
+    spend_map = {s["category_name"]: float(s["current_spend"]) for s in spend_entries}
+
+    # deterministic ordering by category name
+    categories = sorted(set(budget_map.keys()) | set(spend_map.keys()))
+
+    result = []
+    for cat in categories:
+        spent = round(spend_map.get(cat, 0.0), 2)
+        budget = round(budget_map.get(cat, 0.0), 2)
+        remaining = round(budget - spent, 2)
+        result.append({
+            "category": cat,
+            "budget": budget,
+            "spent": spent,
+            "remaining": remaining,
+        })
+    return result
