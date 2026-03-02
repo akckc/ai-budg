@@ -11,6 +11,7 @@ SPRINT_4_COMPLETE = True
 SPRINT_5_COMPLETE = True
 SPRINT_6_COMPLETE = True
 SPRINT_7_COMPLETE = True
+SPRINT_8_COMPLETE = True
 
 ------------------------------------------------
 Phase 1 Summary (Completed)
@@ -150,6 +151,30 @@ No forecast, balance, reconciliation, or Safe-to-Spend logic
 was modified.
 
 ------------------------------------------------
+Sprint 8 Summary (Completed)
+------------------------------------------------
+
+SPRINT_8 = {
+"spend_vs_budget_service_method": True,
+"spend_vs_budget_endpoint": True,
+"dashboard_integration": True,
+"deterministic_category_ordering": True,
+"cross_account_spend_aggregation": True,
+"read_only_visual_layer": True,
+"no_schema_changes": True,
+"no_ledger_mutation": True,
+"no_forecast_modifications": True,
+"no_safe_to_spend_changes": True,
+}
+
+Key Guarantee:
+Spend vs Budget visualization is strictly read-only and advisory.
+All values derive deterministically from:
+    (transactions table) + (category_budgets table)
+No forecast, reconciliation, balance, or Safe-to-Spend
+logic was modified.
+
+------------------------------------------------
 Current Platform State
 ------------------------------------------------
 
@@ -163,6 +188,7 @@ PLATFORM_STATUS = {
 "burndown_chart_live": True,
 "deterministic_category_engine_live": True,
 "budget_layer_live": True,
+"visual_budget_dashboard_live"; True,
 }
 
 Infrastructure Risk Level: LOW
