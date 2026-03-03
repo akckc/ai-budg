@@ -80,6 +80,19 @@ def init_db():
         """)
         log_info("Category rules table ensured.")
 
+        # Ingestion run tracking
+        conn.execute("CREATE SEQUENCE IF NOT EXISTS ingestion_runs_id_seq;")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS ingestion_runs (
+            id BIGINT PRIMARY KEY DEFAULT nextval('ingestion_runs_id_seq'),
+            filename VARCHAR NOT NULL,
+            inserted_count INTEGER NOT NULL,
+            skipped_count INTEGER NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        log_info("Ingestion runs table ensured.")
+
         # Indexes
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_account_date ON transactions(account_id, date);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);")
