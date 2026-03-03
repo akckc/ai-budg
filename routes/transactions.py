@@ -72,6 +72,9 @@ def get_transactions(
     category: Optional[str] = None,
     account_id: Optional[int] = None,
 ):
+    if start_date is None and end_date is None and category is None and account_id is None:
+        return {"transactions": get_all_transactions()}
+
     return {
         "transactions": get_filtered_transactions(
             start_date=start_date,
