@@ -80,6 +80,16 @@ def init_db():
         """)
         log_info("Category rules table ensured.")
 
+        # Category budgets table
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS category_budgets (
+            category_name TEXT PRIMARY KEY,
+            monthly_budget REAL,
+            active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        """)
+        log_info("Category budgets table ensured.")
+
         # Ingestion run tracking
         conn.execute("CREATE SEQUENCE IF NOT EXISTS ingestion_runs_id_seq;")
         conn.execute("""
