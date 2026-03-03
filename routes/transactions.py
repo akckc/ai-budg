@@ -9,6 +9,7 @@ from services.transaction_service import (
     update_transaction_category,
     add_transaction,
     reclassify_all_transactions,
+    get_filtered_transactions,
 )
 from repositories.accounts_repository import get_or_create_account
 
@@ -62,6 +63,26 @@ def upload_csv(file: UploadFile = File(...)):
 @router.get("/transactions/from-db")
 def get_transactions_from_db():
     return {"transactions": get_all_transactions()}
+
+
+@router.get("/transactions")
+def get_transactions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category: Optional[str] = None,
+    account_id: Optional[int] = None,
+):
+    if start_date is None and end_date is None and category is None and account_id is None:
+        return {"transactions": get_all_transactions()}
+
+    return {
+        "transactions": get_filtered_transactions(
+            start_date=start_date,
+            end_date=end_date,
+            category=category,
+            account_id=account_id,
+        )
+    }
 
 
 # -------------------------

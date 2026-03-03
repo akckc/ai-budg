@@ -4,6 +4,7 @@ from repositories.transactions_repository import (
     update_category as repo_update_category,
     insert_transaction as repo_insert_transaction,
     get_transaction_by_id as repo_get_transaction_by_id,
+    get_transactions_filtered as repo_get_transactions_filtered,
 )
 from repositories.category_rules_repository import get_all_category_rules
 from services.category_rule_engine import evaluate_category
@@ -121,5 +122,19 @@ def reclassify_all_transactions():
                 updated_count += 1
 
         return updated_count
+    finally:
+        conn.close()
+
+
+def get_filtered_transactions(start_date=None, end_date=None, category=None, account_id=None) -> list[dict]:
+    conn = get_db()
+    try:
+        return repo_get_transactions_filtered(
+            conn,
+            start_date=start_date,
+            end_date=end_date,
+            category=category,
+            account_id=account_id,
+        )
     finally:
         conn.close()

@@ -2,8 +2,8 @@ import csv
 import io
 import logging
 from duckdb import IntegrityError
-from db import get_db  # <-- use the new helper
 from services.transaction_service import add_transaction
+from repositories.ingestion_repository import record_ingestion_run
 from utils.money import parse_money
 from utils.dates import normalize_date
 
@@ -25,8 +25,6 @@ def ingest_csv(contents: str):
         return {"success": False, "error": f"CSV is missing required columns: {', '.join(missing)}"}
 
     results = []
-
-    conn = get_db()  # open a connection to pass to repository functions if needed
 
     for idx, row in enumerate(reader, start=1):
         row_result = {"row": idx, "success": False, "error": None}
@@ -74,11 +72,17 @@ def ingest_csv(contents: str):
         else:
             logging.warning(f"Row {idx} failed: {row_result['error']}")
 
-    conn.close()  # close the connection after ingestion
+    inserted_count = sum(r["success"] for r in results)
+    skipped_count = len(results) - inserted_count
+    record_ingestion_run(
+        filename="upload.csv",
+        inserted_count=inserted_count,
+        skipped_count=skipped_count,
+    )
 
     return {
         "success": True,
-        "inserted": sum(r["success"] for r in results),
+        "inserted": inserted_count,
         "failed": [r for r in results if not r["success"]],
         "total": len(results)
     }

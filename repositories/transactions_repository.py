@@ -96,6 +96,57 @@ def get_all_transactions(conn, account_name=None, limit=None):
     rows = conn.execute(query, params).fetchall()
     return rows
 
+
+def get_transactions_filtered(conn, start_date=None, end_date=None, category=None, account_id=None):
+    """
+    Returns transactions filtered by optional date range, category, and account_id.
+    """
+    query = """
+    SELECT t.id, t.account_id, a.account_name, t.date, t.description, t.amount,
+           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
+    FROM transactions t
+    JOIN accounts a ON t.account_id = a.id
+    WHERE 1=1
+    """
+    params = []
+
+    if start_date:
+        query += " AND t.date >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND t.date <= ?"
+        params.append(end_date)
+
+    if category:
+        query += " AND t.category = ?"
+        params.append(category)
+
+    if account_id is not None:
+        query += " AND t.account_id = ?"
+        params.append(account_id)
+
+    query += " ORDER BY t.date DESC, t.id DESC"
+
+    rows = conn.execute(query, params).fetchall()
+    return [
+        {
+            "id": r[0],
+            "account_id": r[1],
+            "account_name": r[2],
+            "date": r[3],
+            "description": r[4],
+            "amount": r[5],
+            "balance": r[6],
+            "category": r[7],
+            "source": r[8],
+            "user_id": r[9],
+            "merchant_id": r[10],
+            "created_at": r[11],
+        }
+        for r in rows
+    ]
+
 def get_transaction_by_id(conn, transaction_id):
     """
     Returns a single transaction by its ID.
