@@ -75,7 +75,9 @@ def init_db():
         CREATE TABLE IF NOT EXISTS category_rules (
             id INTEGER PRIMARY KEY,
             pattern VARCHAR NOT NULL,
-            category VARCHAR NOT NULL
+            category VARCHAR NOT NULL,
+            min_amount DOUBLE,
+            max_amount DOUBLE
         );
         """)
         log_info("Category rules table ensured.")
