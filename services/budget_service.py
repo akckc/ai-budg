@@ -74,9 +74,9 @@ def get_spend_vs_budget_summary() -> list[dict]:
     budgets = get_all_category_budgets()
     spend_entries = get_spend_grouped_by_category()
 
-    # build lookup maps
-    budget_map = {b["category_name"]: float(b["monthly_budget"] or 0.0) for b in budgets}
-    spend_map = {s["category_name"]: float(s["current_spend"]) for s in spend_entries}
+    # build lookup maps (filter out None categories)
+    budget_map = {b["category_name"]: float(b["monthly_budget"] or 0.0) for b in budgets if b["category_name"] is not None}
+    spend_map = {s["category_name"]: float(s["current_spend"]) for s in spend_entries if s["category_name"] is not None}
 
     # deterministic ordering by category name
     categories = sorted(set(budget_map.keys()) | set(spend_map.keys()))
