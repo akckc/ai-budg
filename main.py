@@ -16,4 +16,5 @@ app.include_router(transactions_router)
 app.include_router(rules_router)
 app.include_router(forecast_router)
 app.include_router(ingestion_router)
+app.include_router(budgets_router)
 
