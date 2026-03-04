@@ -71,9 +71,11 @@ def init_db():
         log_info("Transactions table ensured.")
 
         # Category rules table
+        conn.execute("CREATE SEQUENCE IF NOT EXISTS category_rules_id_seq;")
+
         conn.execute("""
         CREATE TABLE IF NOT EXISTS category_rules (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY DEFAULT nextval('category_rules_id_seq'),
             pattern VARCHAR NOT NULL,
             category VARCHAR NOT NULL,
             min_amount DOUBLE,
