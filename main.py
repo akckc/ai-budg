@@ -5,6 +5,7 @@ from routes.transactions import router as transactions_router
 from routes.rules import router as rules_router
 from routes.forecast import router as forecast_router
 from routes.ingestion import router as ingestion_router
+from routes.budgets import router as budgets_router
 
 app = FastAPI()
 
