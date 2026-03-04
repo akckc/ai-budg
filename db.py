@@ -122,7 +122,7 @@ def init_db():
 
         #Recurring transactions table
         conn.execute("""
-        CREATE TABLE IF NOT EXISTS recurring_transactions (
+        CREATE TABLE IF NOT EXISTS recurring_events (
         id BIGINT PRIMARY KEY,
         account_id BIGINT NOT NULL,
 
