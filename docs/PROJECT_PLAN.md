@@ -203,7 +203,7 @@ Tier 0 Completion Status (Locked)
 ✓ Manual transaction entry
 ✓ Transaction edit/delete
 ✓ CSV import with deduplication
-✓ Recurring transaction modeling
+✓ Recurring event modeling
 ✓ Deterministic 14-day forecast
 ✓ Safe-to-Spend (cash-flow authoritative)
 ✓ Multi-account consistency
