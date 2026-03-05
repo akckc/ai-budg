@@ -63,6 +63,7 @@ def init_db():
             source TEXT,
             user_id BIGINT,
             merchant_id BIGINT,
+            merchant_normalized TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(account_id, date, description, amount)
         );

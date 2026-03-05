@@ -6,7 +6,7 @@ from db import get_db
 
 def insert_transaction(conn, date, description, amount,
                        balance=None, category=None, source='unknown',
-                       user_id=None, merchant_id=None,
+                       user_id=None, merchant_id=None, merchant_normalized=None,
                        account_id=None, account_name=None):
     """
     Inserts a transaction into the DB.
@@ -42,10 +42,10 @@ def insert_transaction(conn, date, description, amount,
         conn.execute(
             """
             INSERT INTO transactions
-            (account_id, date, description, amount, balance, category, source, user_id, merchant_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (account_id, date, description, amount, balance, category, source, user_id, merchant_id, merchant_normalized)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (account_id, date, description, amount, balance, category, source, user_id, merchant_id)
+            (account_id, date, description, amount, balance, category, source, user_id, merchant_id, merchant_normalized)
         )
     except Exception as e:
         msg = str(e).lower()
@@ -79,7 +79,7 @@ def get_all_transactions(conn, account_name=None, limit=None):
     """
     query = """
     SELECT t.id, a.account_name, t.date, t.description, t.amount,
-           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
+           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.merchant_normalized, t.created_at
     FROM transactions t
     JOIN accounts a ON t.account_id = a.id
     """
@@ -103,7 +103,7 @@ def get_transactions_filtered(conn, start_date=None, end_date=None, category=Non
     """
     query = """
     SELECT t.id, t.account_id, a.account_name, t.date, t.description, t.amount,
-           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
+           t.balance, t.category, t.source, t.user_id, t.merchant_id, t.merchant_normalized, t.created_at
     FROM transactions t
     JOIN accounts a ON t.account_id = a.id
     WHERE 1=1
@@ -142,7 +142,8 @@ def get_transactions_filtered(conn, start_date=None, end_date=None, category=Non
             "source": r[8],
             "user_id": r[9],
             "merchant_id": r[10],
-            "created_at": r[11],
+            "merchant_normalized": r[11],
+            "created_at": r[12],
         }
         for r in rows
     ]
@@ -153,7 +154,7 @@ def get_transaction_by_id(conn, transaction_id):
     """
     row = conn.execute(
         """
-        SELECT t.id, a.account_name, t.date, t.description, t.amount,
+        SELECT t.id, a.account_name, t.date, t.description, t.amount,merchant_normalized, t.
                t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
         FROM transactions t
         JOIN accounts a ON t.account_id = a.id

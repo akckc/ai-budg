@@ -8,6 +8,7 @@ from repositories.transactions_repository import (
 )
 from repositories.category_rules_repository import get_all_category_rules
 from services.category_rule_engine import evaluate_category
+from services.merchant_normalization import normalize_merchant
 
 
 def get_all_transactions(account_name=None, limit=None):
@@ -40,9 +41,14 @@ def add_transaction(*, date, description, amount,
     be set (``account_name`` defaults to ``"Primary Account"``).
 
     If no category is provided, deterministically evaluates rules.
+    
+    Normalizes merchant name from description (deterministic transformation).
     """
     conn = get_db()
     try:
+        # Normalize merchant name from description
+        merchant_normalized = normalize_merchant(description)
+        
         # If no category provided, try to apply rules
         if category is None:
             rules = get_all_category_rules(conn)
@@ -58,6 +64,7 @@ def add_transaction(*, date, description, amount,
             source=source,
             user_id=user_id,
             merchant_id=merchant_id,
+            merchant_normalized=merchant_normalized,
             account_id=account_id,
             account_name=account_name,
         )
