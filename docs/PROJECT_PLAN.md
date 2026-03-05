@@ -1,5 +1,5 @@
 ============================================
-Budget-AI — Project Plan (Post Sprint 6)
+Budget-AI — Project Plan (Post Sprint 10)
 DA Version: 1.1
 Phase 2 → Tier 1 Expansion
 ============================================
@@ -12,6 +12,8 @@ SPRINT_5_COMPLETE = True
 SPRINT_6_COMPLETE = True
 SPRINT_7_COMPLETE = True
 SPRINT_8_COMPLETE = True
+SPRINT_9_COMPLETE = True
+SPRINT_10_COMPLETE = True
 
 ------------------------------------------------
 Phase 1 Summary (Completed)
@@ -175,6 +177,55 @@ No forecast, reconciliation, balance, or Safe-to-Spend
 logic was modified.
 
 ------------------------------------------------
+Sprint 9 Summary (Completed)
+------------------------------------------------
+
+SPRINT_9 = {
+"ingestion_transaction_store": True,
+"ingestion_audit_trail": True,
+"ingestion_filtering_rules": True,
+"filtered_vs_imported_split": True,
+"ingestion_status_transparency": True,
+"deterministic_filtering_logic": True,
+"no_schema_changes_to_transactions": True,
+"no_ledger_mutation": True,
+"no_forecast_modifications": True,
+}
+
+Key Guarantee:
+Ingestion layer is fully transparent with audit trail.
+Filtering is deterministic and configurable.
+All filtered metadata and statistics are tracked.
+No financial logic, forecast, or Safe-to-Spend calculations
+were modified.
+
+------------------------------------------------
+Sprint 10 Summary (Completed)
+------------------------------------------------
+
+SPRINT_10 = {
+"merchant_normalization_service": True,
+"merchant_name_standardization": True,
+"merchant_grouping_rules": True,
+"fuzzy_matching_engine": True,
+"normalization_mapping_store": True,
+"auto_normalize_on_import": True,
+"bulk_normalization_endpoint": True,
+"deterministic_normalization": True,
+"no_financial_logic_changes": True,
+"no_forecast_modifications": True,
+"no_safe_to_spend_changes": True,
+"read_only_merchant_data": True,
+}
+
+Key Guarantee:
+Merchant normalization is fully deterministic and rule-based.
+Normalization mappings are stored and queryable.
+Applied consistently across all ingestion paths.
+No financial calculations, balances, forecasts, or reconciliation
+logic were modified.
+
+------------------------------------------------
 Current Platform State
 ------------------------------------------------
 
@@ -182,19 +233,21 @@ PLATFORM_STATUS = {
 "ledger_authoritative": True,
 "multi_account_consistent": True,
 "deterministic_ingestion": True,
+"ingestion_transparent": True,
+"merchant_normalization_live": True,
 "recurring_templates_ready": True,
 "forecast_engine_complete": True,
 "safe_to_spend_complete": True,
 "burndown_chart_live": True,
 "deterministic_category_engine_live": True,
 "budget_layer_live": True,
-"visual_budget_dashboard_live"; True,
+"visual_budget_dashboard_live": True,
 }
 
 Infrastructure Risk Level: LOW
 Schema Risk Level: LOW
 Tier 0 Status: COMPLETE
-Tier 1 Status: IN PROGRESS
+Tier 1 Status: IN PROGRESS (Sprints 7-10 Complete)
 
 ------------------------------------------------
 Tier 0 Completion Status (Locked)
@@ -215,19 +268,22 @@ All Tier 0 guarantees satisfied per DA v1.1.
 
 
 ------------------------------------------------
-Tier 1 Roadmap (Experience Layer)
+Tier 1 Roadmap (Complete)
 ------------------------------------------------
 
-SPRINT_7 = "Budget per Category + Spend Tracking"
-SPRINT_8 = "Visual Spend vs Budget"
-SPRINT_9 = "Ingestion Transparency + Filtering"
-SPRINT_10 = "Merchant Normalization Layer"
+✓ SPRINT_7 = "Budget per Category + Spend Tracking"
+✓ SPRINT_8 = "Visual Spend vs Budget"
+✓ SPRINT_9 = "Ingestion Transparency + Filtering"
+✓ SPRINT_10 = "Merchant Normalization Layer"
 
-Tier 2 (Future Intelligence):
+Tier 1 Complete Status: FINISHED
+
+Next Phase (Tier 2 - Future Intelligence):
 - AI trend analysis
 - Suggested budget corrections
 - Spending warnings
 - Predictive modeling
+- Advanced reporting
 
 ------------------------------------------------
 Architectural Principles (Locked In)
