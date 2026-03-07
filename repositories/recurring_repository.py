@@ -25,7 +25,6 @@ def create_recurring_event(
     """
     conn = get_db()
     try:
-        ensure_recurring_event_sequence(conn)
         row = conn.execute(
             """
             INSERT INTO recurring_events (
