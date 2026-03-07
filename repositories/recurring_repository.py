@@ -1,14 +1,6 @@
 from db import get_db
 
 
-def ensure_recurring_event_sequence(conn) -> None:
-    """
-    Ensure recurring_events_id_seq exists.
-    Must be safe to call multiple times (idempotent).
-    """
-    conn.execute("CREATE SEQUENCE IF NOT EXISTS recurring_events_id_seq;")
-
-
 def create_recurring_event(
     *,
     account_id: int,

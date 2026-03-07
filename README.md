@@ -170,6 +170,11 @@ ai-budg/
 ```
 
 ---
+## Requirements
+
+- **Python 3.11+** (the codebase uses Python 3.10+ typing syntax like `str | None` and `list[...]`)
+
+---
 
 ## Contributing
 
