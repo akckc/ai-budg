@@ -122,6 +122,8 @@ def init_db():
         log_info("Default primary account ensured.")
 
         #Recurring transactions table
+        conn.execute("CREATE SEQUENCE IF NOT EXISTS recurring_events_id_seq;")
+
         conn.execute("""
         CREATE TABLE IF NOT EXISTS recurring_events (
         id BIGINT PRIMARY KEY,
