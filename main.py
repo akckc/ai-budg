@@ -7,6 +7,7 @@ from routes.forecast import router as forecast_router
 from routes.ingestion import router as ingestion_router
 from routes.budgets import router as budgets_router
 from routes.recurring import router as recurring_router
+from routes.upload import router as upload_router
 
 app = FastAPI()
 
@@ -19,4 +20,5 @@ app.include_router(forecast_router)
 app.include_router(ingestion_router)
 app.include_router(budgets_router)
 app.include_router(recurring_router)
+app.include_router(upload_router)
 

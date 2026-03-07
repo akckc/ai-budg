@@ -15,19 +15,32 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-def ingest_csv(contents: str):
+def ingest_csv(contents: str, account_id: int = None):
     reader = csv.DictReader(io.StringIO(contents, newline=""))
     if not reader.fieldnames:
-        return {"success": False, "error": "CSV is missing headers"}
+        return {
+            "success": False,
+            "rows_imported": 0,
+            "categories_assigned": {},
+            "error_message": "CSV is missing headers",
+            "error_row": None,
+        }
 
     missing = sorted(REQUIRED_COLUMNS - set(reader.fieldnames))
     if missing:
-        return {"success": False, "error": f"CSV is missing required columns: {', '.join(missing)}"}
+        return {
+            "success": False,
+            "rows_imported": 0,
+            "categories_assigned": {},
+            "error_message": f"CSV is missing required columns: {', '.join(missing)}",
+            "error_row": None,
+        }
 
     results = []
+    categories_assigned = {}
 
     for idx, row in enumerate(reader, start=1):
-        row_result = {"row": idx, "success": False, "error": None}
+        row_result = {"row": idx, "success": False, "error": None, "category": None}
 
         try:
             raw_date = (row.get("Date") or "").strip()
@@ -45,7 +58,6 @@ def ingest_csv(contents: str):
             merchant_id = row.get("Merchant ID") or None
             account_name = row.get("Account Name")  # optional, repository handles mapping
 
-            # Insert transaction via repository (pass conn if repo supports it)
             # delegate to service layer (handles connection lifecycle)
             add_transaction(
                 date=date,
@@ -56,10 +68,12 @@ def ingest_csv(contents: str):
                 source=source,
                 user_id=user_id,
                 merchant_id=merchant_id,
+                account_id=account_id,
                 account_name=account_name,
             )
 
             row_result["success"] = True
+            row_result["category"] = category
 
         except IntegrityError:
             row_result["error"] = "Duplicate transaction (unique constraint)"
@@ -69,6 +83,8 @@ def ingest_csv(contents: str):
         results.append(row_result)
         if row_result["success"]:
             logging.info(f"Row {idx} inserted successfully (account={account_name or 'Primary Account'})")
+            cat_key = row_result["category"] or "Uncategorized"
+            categories_assigned[cat_key] = categories_assigned.get(cat_key, 0) + 1
         else:
             logging.warning(f"Row {idx} failed: {row_result['error']}")
 
@@ -80,9 +96,12 @@ def ingest_csv(contents: str):
         skipped_count=skipped_count,
     )
 
+    first_failure = next((r for r in results if not r["success"]), None)
+
     return {
         "success": True,
-        "inserted": inserted_count,
-        "failed": [r for r in results if not r["success"]],
-        "total": len(results)
+        "rows_imported": inserted_count,
+        "categories_assigned": categories_assigned,
+        "error_message": first_failure["error"] if first_failure else None,
+        "error_row": first_failure["row"] if first_failure else None,
     }

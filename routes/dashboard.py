@@ -91,7 +91,7 @@ def dashboard(request: Request):
             "spend_vs_budget": spend_vs_budget,
         }
     )
-from fastapi import Form
+from fastapi import Form, HTTPException
 from fastapi.responses import RedirectResponse
 from repositories.accounts_repository import get_or_create_account
 from services.transaction_service import add_transaction
@@ -100,33 +100,60 @@ from services.transaction_service import add_transaction
 # MANUAL TRANSACTION FORM SUBMISSION
 # -------------------------
 @router.post("/transactions/manual")
-def add_manual_transaction_form(
-    date: str = Form(...),
-    description: str = Form(...),
-    amount: float = Form(...),
-    category: str = Form(None),
-    account_name: str = Form("Primary Account"),
-):
+async def add_manual_transaction_form(request: Request):
     """
-    Handles HTML form submission from dashboard add transaction card.
+    Handles both HTML form submissions (from dashboard) and JSON API calls.
+
+    - application/json → returns JSON {"success": true, "message": "..."}
+    - application/x-www-form-urlencoded → redirects back to /dashboard
     """
-    # Ensure account exists
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        data = await request.json()
+        account_name = data.get("account_name", "Primary Account")
+        date_val = data.get("date")
+        description = data.get("description")
+        raw_amount = data.get("amount")
+        if raw_amount is None:
+            raise HTTPException(status_code=400, detail="amount is required")
+        amount = float(raw_amount)
+        balance = float(data.get("balance")) if data.get("balance") not in (None, "") else None
+        category = data.get("category")
+        source = data.get("source", "Manual")
+    else:
+        form = await request.form()
+        account_name = form.get("account_name", "Primary Account")
+        date_val = form.get("date")
+        description = form.get("description")
+        raw_amount = form.get("amount")
+        if raw_amount is None:
+            raise HTTPException(status_code=400, detail="amount is required")
+        amount = float(raw_amount)
+        balance = float(form.get("balance")) if form.get("balance") not in (None, "") else None
+        category = form.get("category")
+        source = form.get("source", "Manual")
+
     account = get_or_create_account(account_name)
     account_id = account["id"]
 
     try:
         add_transaction(
             account_id=account_id,
-            date=date,
+            date=date_val,
             description=description,
             amount=amount,
-            balance=None,
+            balance=balance,
             category=category,
-            source="Manual",
+            source=source,
         )
     except Exception as e:
-        # Could log here if desired
+        if "application/json" in content_type:
+            raise HTTPException(status_code=400, detail=f"Insert failed: {e}")
         return {"success": False, "error": str(e)}
 
-    # Redirect back to dashboard after submission
+    if "application/json" in content_type:
+        return {"success": True, "message": "Transaction added"}
+
+    # Redirect back to dashboard after HTML form submission
     return RedirectResponse(url="/dashboard", status_code=303)
