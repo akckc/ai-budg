@@ -154,8 +154,8 @@ def get_transaction_by_id(conn, transaction_id):
     """
     row = conn.execute(
         """
-        SELECT t.id, a.account_name, t.date, t.description, t.amount,merchant_normalized, t.
-               t.balance, t.category, t.source, t.user_id, t.merchant_id, t.created_at
+        SELECT t.id, a.account_name, t.date, t.description, t.amount,
+               t.balance, t.category, t.source, t.user_id, t.merchant_id, t.merchant_normalized, t.created_at
         FROM transactions t
         JOIN accounts a ON t.account_id = a.id
         WHERE t.id = ?
