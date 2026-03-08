@@ -142,6 +142,17 @@ def init_db():
         );
         """)
         log_info("Recurring transactions table ensured.")
+
+        # AI category suggestions cache table
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS ai_category_suggestions (
+            merchant_normalized TEXT PRIMARY KEY,
+            suggested_category TEXT NOT NULL,
+            model TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        log_info("AI category suggestions table ensured.")
     
     except Exception as e:
             log_error(f"Error initializing DB: {e}")
