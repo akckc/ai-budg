@@ -10,7 +10,7 @@ from repositories.ai_category_repository import (
 
 # Environment configuration with defaults
 AI_ENABLED = os.getenv("AI_ENABLED", "false").lower() in ("true", "1", "yes")
-AI_OLLAMA_BASE_URL = os.getenv("AI_OLLAMA_BASE_URL", "http://localhost:11434")
+AI_OLLAMA_BASE_URL = os.getenv("AI_OLLAMA_BASE_URL", "http://192.168.86.36:11434")
 AI_MODEL = os.getenv("AI_MODEL", "qwen2.5:14b")
 AI_TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "10"))
 AI_MAX_MERCHANTS_PER_RUN = int(os.getenv("AI_MAX_MERCHANTS_PER_RUN", "10"))
