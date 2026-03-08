@@ -1,6 +1,3 @@
-from db import get_db
-
-
 def list_uncategorized_merchants(conn, limit: int) -> list[str]:
     """
     Return distinct merchant_normalized values where category IS NULL.
@@ -14,10 +11,12 @@ def list_uncategorized_merchants(conn, limit: int) -> list[str]:
           AND merchant_normalized != ''
         ORDER BY merchant_normalized
     """
+    params = []
     if limit:
-        query += f" LIMIT {int(limit)}"
+        query += " LIMIT ?"
+        params.append(int(limit))
     
-    rows = conn.execute(query).fetchall()
+    rows = conn.execute(query, params).fetchall()
     return [row[0] for row in rows]
 
 
@@ -54,9 +53,21 @@ def upsert_suggestion(conn, merchant_normalized: str, category: str, model: str)
 def apply_suggestion_to_uncategorized(conn, merchant_normalized: str, category: str) -> int:
     """
     Bulk update category where category IS NULL and merchant_normalized matches.
-    Return row count.
+    Return reliable row count via count-before/count-after.
     """
-    result = conn.execute(
+    # Count matching rows BEFORE update
+    count_before = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM transactions
+        WHERE merchant_normalized = ?
+          AND category IS NULL
+        """,
+        [merchant_normalized]
+    ).fetchone()[0]
+    
+    # Perform update
+    conn.execute(
         """
         UPDATE transactions
         SET category = ?
@@ -65,4 +76,6 @@ def apply_suggestion_to_uncategorized(conn, merchant_normalized: str, category: 
         """,
         [category, merchant_normalized]
     )
-    return result.fetchone()[0] if hasattr(result, 'fetchone') else 0
+    
+    # Return count of affected rows (those that had category=NULL before)
+    return count_before
