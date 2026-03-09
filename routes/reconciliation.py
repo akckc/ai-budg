@@ -2,9 +2,12 @@ from fastapi import APIRouter, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from services.reconciliation_service import apply_reconciliation
-from services.ai_categorization_service import run_ai_reclassify_uncategorized
 from typing import Optional
 import json
+import logging
+
+# Add logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -18,13 +21,6 @@ _reconciliation_sessions = {}
 def reconciliation_review_page(request: Request, session_id: str):
     """
     Display reconciliation review page with matched/unmatched transactions.
-    
-    Shows three sections:
-    - Auto-matched (≥90% confidence)
-    - Review needed (70-89% confidence)
-    - Unmatched (CSV and manual)
-    
-    User can approve/reject matches before finalization.
     """
     if session_id not in _reconciliation_sessions:
         return HTMLResponse(
@@ -89,29 +85,28 @@ def reconciliation_review_page(request: Request, session_id: str):
 def finalize_reconciliation_post(
     session_id: str = Form(...),
     account_id: str = Form(...),
-    approved_matches: Optional[str] = Form(None),  # JSON string of [[csv_idx, manual_id], ...]
+    approved_matches: Optional[str] = Form(None),
 ):
     """
     Process user approvals and finalize reconciliation.
     
     Applies approved matches, inserts unmatched CSV rows, updates reconciliation status.
     """
-    # Convert account_id to int
-    try:
-        account_id = int(account_id)
-    except (ValueError, TypeError):
-        return HTMLResponse(
-            content="<h1>Invalid Account ID</h1>",
-            status_code=400
-        )
+    logger.info(f"DEBUG: finalize_reconciliation_post called")
+    logger.info(f"DEBUG: session_id={session_id}")
+    logger.info(f"DEBUG: account_id={account_id}")
+    logger.info(f"DEBUG: approved_matches={approved_matches}")
     
     if session_id not in _reconciliation_sessions:
+        logger.error(f"DEBUG: Session {session_id} not found in _reconciliation_sessions")
+        logger.error(f"DEBUG: Available sessions: {list(_reconciliation_sessions.keys())}")
         return HTMLResponse(
             content="<h1>Session not found</h1>",
             status_code=404
         )
     
     reconciliation_data = _reconciliation_sessions[session_id]
+    logger.info(f"DEBUG: reconciliation_data keys: {reconciliation_data.keys()}")
     
     # Parse approved matches from form
     approved_indices = []
@@ -119,42 +114,44 @@ def finalize_reconciliation_post(
         try:
             approved_list = json.loads(approved_matches)
             approved_indices = [(int(csv_idx), int(manual_id)) for csv_idx, manual_id in approved_list]
-        except (json.JSONDecodeError, ValueError):
+            logger.info(f"DEBUG: Parsed {len(approved_indices)} approved matches")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"DEBUG: Failed to parse approved_matches: {e}")
             pass
     
-    # Apply reconciliation
-    result = apply_reconciliation(
-        account_id=account_id,
-        reconciliation_data=reconciliation_data,
-        user_approvals={'approved_indices': approved_indices}
-    )
-    
-    # Run AI categorization on uncategorized merchants
-    categorization_result = run_ai_reclassify_uncategorized(max_merchants=50)
-    result['categorization'] = {
-        'merchants_processed': categorization_result.get('merchants_processed', 0),
-        'transactions_updated': categorization_result.get('transactions_updated', 0),
-        'cache_hits': categorization_result.get('cache_hits', 0),
-        'ai_calls': categorization_result.get('ai_calls', 0),
-    }
-    
-    # Clean up session
-    del _reconciliation_sessions[session_id]
-    
-    if result['status'] == 'success':
-        categorization = result.get('categorization', {})
-        categorization_html = ""
-        if categorization.get('merchants_processed', 0) > 0:
-            categorization_html = f"""
-        <p><strong>Categorization:</strong></p>
-        <ul>
-            <li>Merchants processed: {categorization.get('merchants_processed', 0)}</li>
-            <li>Transactions categorized: {categorization.get('transactions_updated', 0)}</li>
-            <li>Cache hits: {categorization.get('cache_hits', 0)}</li>
-            <li>AI calls: {categorization.get('ai_calls', 0)}</li>
-        </ul>
-        """
-        return HTMLResponse(content=f"""
+    try:
+        # Convert account_id to int
+        account_id_int = int(account_id)
+        
+        logger.info(f"DEBUG: Calling apply_reconciliation with account_id={account_id_int}")
+        
+        # Apply reconciliation
+        result = apply_reconciliation(
+            account_id=account_id_int,
+            reconciliation_data=reconciliation_data,
+            user_approvals={'approved_indices': approved_indices}
+        )
+        
+        logger.info(f"DEBUG: apply_reconciliation returned: {result}")
+        
+        # Clean up session
+        del _reconciliation_sessions[session_id]
+        
+        if result['status'] == 'success':
+            categorization = result.get('categorization', {})
+            categorization_html = ""
+            if categorization.get('merchants_processed', 0) > 0:
+                categorization_html = f"""
+                <p><strong>Categorization:</strong></p>
+                <ul>
+                    <li>Merchants processed: {categorization.get('merchants_processed', 0)}</li>
+                    <li>Transactions categorized: {categorization.get('transactions_updated', 0)}</li>
+                    <li>Cache hits: {categorization.get('cache_hits', 0)}</li>
+                    <li>AI calls: {categorization.get('ai_calls', 0)}</li>
+                </ul>
+                """
+            
+            return HTMLResponse(content=f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -205,9 +202,9 @@ def finalize_reconciliation_post(
     <p><a href="/dashboard">→ Go to Dashboard</a></p>
 </body>
 </html>
-        """)
-    else:
-        return HTMLResponse(content=f"""
+            """)
+        else:
+            return HTMLResponse(content=f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -216,6 +213,22 @@ def finalize_reconciliation_post(
 <body>
     <h1>Reconciliation Error</h1>
     <p>Error: {result.get('error', 'Unknown error')}</p>
+    <a href="/dashboard">← Back to Dashboard</a>
+</body>
+</html>
+            """, status_code=500)
+    
+    except Exception as e:
+        logger.exception(f"DEBUG: Exception in finalize_reconciliation_post: {e}")
+        return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reconciliation Error</title>
+</head>
+<body>
+    <h1>Reconciliation Error</h1>
+    <p>Exception: {str(e)}</p>
     <a href="/dashboard">← Back to Dashboard</a>
 </body>
 </html>
