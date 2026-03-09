@@ -1,76 +1,99 @@
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from typing import Dict, List, Tuple
+import re
 import uuid
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize text for comparison: lowercase and strip all non-alphanumeric characters."""
+    return re.sub(r'[^a-z0-9]', '', text.lower())
+
+
+def _get_manual_description(manual_entry: dict) -> str:
+    """
+    Return the best description text for a manual entry to use in matching.
+    Prefers merchant_normalized (already cleaned) over raw description.
+    """
+    merchant = manual_entry.get('merchant') or ''
+    description = manual_entry.get('description') or ''
+    return merchant if merchant else description
 
 
 def score_match(csv_row: dict, manual_entry: dict) -> float:
     """
-    Calculate fuzzy match confidence score (0-100) between CSV row and manual entry.
-    
+    Calculate fuzzy match confidence score (0-100) between a CSV row and a manual entry.
+
     Inputs:
-    - csv_row: dict with keys 'date' (YYYY-MM-DD), 'amount' (float), 'merchant' (str)
-    - manual_entry: dict with keys 'date' (YYYY-MM-DD), 'amount' (float), 'merchant' (str)
-    
+    - csv_row: dict with keys 'date' (YYYY-MM-DD), 'amount' (float), 'description' (str)
+    - manual_entry: dict with keys 'date' (YYYY-MM-DD), 'amount' (float),
+                    'description' (str), 'merchant' (str, optional)
+
     Returns:
     - score: float 0-100 representing confidence percentage
-    
-    Scoring rules:
-    - Base score: 0
-    - Date match (±1 day): +30 points
-    - Amount match (±$0.50): +30 points
-    - Merchant match (normalized): +40 points
-    
+
+    Scoring weights:
+    - Amount match (≤2% variance): 40 points
+    - Date match (±1 day):         30 points
+    - Description similarity:      30 points
+
     Deterministic: Same inputs always produce same score.
     No side effects.
     """
     score = 0.0
-    
-    # Parse dates
+
+    # --- Date scoring (weight 30): ±1 day = full 30 points ---
     try:
         csv_date = datetime.strptime(csv_row['date'], '%Y-%m-%d').date()
         manual_date = datetime.strptime(manual_entry['date'], '%Y-%m-%d').date()
     except (ValueError, KeyError):
         return 0.0  # Invalid date format
-    
-    # Date scoring: ±1 day = 30 points
+
     date_diff = abs((csv_date - manual_date).days)
-    if date_diff == 0:
+    if date_diff <= 1:
         score += 30.0
-    elif date_diff == 1:
-        score += 30.0
-    else:
-        # No points for dates >1 day apart
-        pass
-    
-    # Amount scoring: ±$0.50 = 30 points
+    # else: 0 points for dates more than 1 day apart
+
+    # --- Amount scoring (weight 40): ≤2% variance = full 40 points ---
     try:
         csv_amount = float(csv_row['amount'])
         manual_amount = float(manual_entry['amount'])
     except (ValueError, KeyError):
         return 0.0  # Invalid amount
-    
-    amount_diff = abs(csv_amount - manual_amount)
-    if amount_diff <= 0.01:  # Exact match (within 1 cent)
-        score += 30.0
-    elif amount_diff <= 0.25:
-        score += 30.0
-    elif amount_diff <= 0.50:
-        score += 30.0
+
+    ref_amount = max(abs(csv_amount), abs(manual_amount))
+    if ref_amount == 0:
+        # Both zero: exact match
+        score += 40.0
     else:
-        # No points for amounts >$0.50 apart
-        pass
-    
-    # Merchant scoring: normalized match = 40 points
-    csv_merchant = str(csv_row.get('merchant', '')).lower().strip()
-    manual_merchant = str(manual_entry.get('merchant', '')).lower().strip()
-    
-    if csv_merchant and manual_merchant:
-        if csv_merchant == manual_merchant:
+        # Use the larger absolute value as denominator so variance is always ≤100%.
+        # Amounts with very different magnitudes will have high variance and won't match.
+        amount_variance = abs(csv_amount - manual_amount) / ref_amount
+        if amount_variance <= 0.02:
+            # ≤2% variance: full points
             score += 40.0
-        elif csv_merchant in manual_merchant or manual_merchant in csv_merchant:
-            # Partial match gets partial points
+        elif amount_variance <= 0.05:
+            # ≤5% variance: partial points
             score += 20.0
-    
+        # else: 0 points for amounts with >5% variance
+
+    # --- Description similarity (weight 30) ---
+    # For manual entries, prefer merchant_normalized (already cleaned) over raw description.
+    # For CSV rows, use the description field (bank descriptions are verbose but contain
+    # the merchant name).
+    csv_text = _normalize_text(str(csv_row.get('description', '') or ''))
+    manual_text = _normalize_text(_get_manual_description(manual_entry))
+
+    if csv_text and manual_text:
+        # Substring containment: covers short merchant names embedded in long bank strings
+        # (e.g. "hyvee" found inside "pointofsalewithdrawalhyveekansascity...")
+        if manual_text in csv_text or csv_text in manual_text:
+            score += 30.0
+        else:
+            # Sequence similarity fallback for descriptions of similar length
+            ratio = SequenceMatcher(None, csv_text, manual_text).ratio()
+            score += ratio * 30.0
+
     return min(score, 100.0)  # Cap at 100%
 
 
