@@ -1,8 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from typing import Optional
+import csv
+import io
 from services.csv_ingest_service import ingest_csv
+from services.reconciliation_service import initiate_reconciliation
 from repositories.accounts_repository import get_or_create_account, list_accounts
+from routes.reconciliation import store_reconciliation_session
+from utils.money import parse_money
+from utils.dates import normalize_date
 
 router = APIRouter()
 
@@ -254,6 +260,39 @@ def upload_csv(
     except UnicodeDecodeError:
         return _error_page("File must be UTF-8 encoded CSV", None)
 
+    # Parse CSV to check format
+    csv_rows, parse_error = _parse_csv_rows(contents)
+    if parse_error:
+        return _error_page(parse_error["message"], parse_error.get("row"))
+
+    # If resolved_account_id is available and we have manual transactions, use reconciliation workflow
+    USE_RECONCILIATION = True  # Feature flag - set to False to use old ingest workflow
+    
+    if USE_RECONCILIATION and resolved_account_id and csv_rows:
+        try:
+            # Initiate reconciliation (fuzzy matching with existing manual entries)
+            reconciliation_result = initiate_reconciliation(resolved_account_id, csv_rows)
+            session_id = reconciliation_result["session_id"]
+            
+            # Store session data for review page
+            store_reconciliation_session(session_id, {
+                "account_id": resolved_account_id,
+                "auto_matched": reconciliation_result["auto_matched"],
+                "review_matches": reconciliation_result["review_matches"],
+                "unmatched_csv": reconciliation_result["unmatched_csv"],
+                "unmatched_manual": reconciliation_result["unmatched_manual"],
+            })
+            
+            # Redirect to reconciliation review page
+            return RedirectResponse(
+                url=f"/reconciliation/review?session_id={session_id}",
+                status_code=303
+            )
+        except Exception as e:
+            # Fall back to old workflow if reconciliation fails
+            return _error_page(f"Reconciliation failed: {str(e)}", None)
+    
+    # Fall back to old direct ingestion workflow
     result = ingest_csv(contents, account_id=resolved_account_id)
 
     if not result["success"]:
@@ -264,6 +303,45 @@ def upload_csv(
         return _partial_success_page(result["rows_imported"], result["error_message"], result["error_row"])
 
     return _success_page(result["rows_imported"], result["categories_assigned"])
+
+
+def _parse_csv_rows(contents: str):
+    """Parse CSV contents into rows for reconciliation. Returns (rows, error)."""
+    REQUIRED_COLUMNS = {"Date", "Description", "Amount"}
+    
+    reader = csv.DictReader(io.StringIO(contents, newline=""))
+    if not reader.fieldnames:
+        return None, {"message": "CSV is missing headers", "row": None}
+
+    missing = sorted(REQUIRED_COLUMNS - set(reader.fieldnames))
+    if missing:
+        return None, {"message": f"CSV is missing required columns: {', '.join(missing)}", "row": None}
+
+    rows = []
+    for idx, row in enumerate(reader, start=1):
+        try:
+            raw_date = (row.get("Date") or "").strip()
+            raw_description = (row.get("Description") or "").strip()
+            if not raw_date or not raw_description:
+                return None, {"message": "Missing required date or description", "row": idx}
+
+            date = normalize_date(raw_date)
+            description = raw_description
+            amount = parse_money(row.get("Amount"))
+            balance = parse_money(row.get("Balance")) if row.get("Balance") else None
+            category = row.get("Category") or None
+
+            rows.append({
+                "date": date,
+                "description": description,
+                "amount": amount,
+                "balance": balance,
+                "category": category,
+            })
+        except Exception as e:
+            return None, {"message": str(e), "row": idx}
+
+    return rows, None
 
 
 def _success_page(rows_imported: int, categories_assigned: dict) -> str:

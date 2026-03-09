@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reconciliation Review</title>
+    <style>
+        :root {
+            --bg-main: #2F2F2F;
+            --bg-card: #3A3A3A;
+            --bg-card-hover: #444444;
+            --border-default: #505050;
+            --text-primary: #F2F2F2;
+            --text-secondary: #C8C8C8;
+            --text-muted: #9A9A9A;
+            --color-income: #3FB950;
+            --color-expense: #F85149;
+            --color-budget: #58A6FF;
+            --color-warning: #F2CC60;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 32px;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        h1 {
+            margin: 0 0 16px 0;
+            font-size: 28px;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: 18px;
+            margin: 32px 0 16px 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: var(--color-income);
+            color: #1B1F23;
+        }
+
+        .badge-warning {
+            background: var(--color-warning);
+            color: #1B1F23;
+        }
+
+        .badge-error {
+            background: var(--color-expense);
+            color: white;
+        }
+
+        .info {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid var(--color-budget);
+            color: var(--text-secondary);
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .match-group {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 1fr 120px 80px;
+            gap: 16px;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-default);
+        }
+
+        .match-row:last-child {
+            border-bottom: none;
+        }
+
+        .match-header {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transaction-details {
+            font-size: 13px;
+        }
+
+        .transaction-date {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+        }
+
+        .amount-income {
+            color: var(--color-income);
+        }
+
+        .amount-expense {
+            color: var(--color-expense);
+        }
+
+        .confidence {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .confidence-high {
+            color: var(--color-income);
+        }
+
+        .confidence-medium {
+            color: var(--color-warning);
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--color-budget);
+        }
+
+        button {
+            padding: 12px 24px;
+            cursor: pointer;
+            background: var(--color-budget);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background 0.2s;
+            margin-top: 32px;
+        }
+
+        button:hover {
+            background: #6CB6FF;
+        }
+
+        button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 24px;
+            color: var(--color-budget);
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .unmatched-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .empty-section {
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Reconciliation Review</h1>
+<a class="back-link" href="/dashboard">← Cancel and return to Dashboard</a>
+
+<div class="info">
+    <strong>Review Matches</strong><br>
+    CSV bank statement data is authoritative and will supersede manual entries when approved.
+    High-confidence matches (≥90%) are auto-checked for approval. Review medium-confidence matches (70-89%) carefully before finalizing.
+</div>
+
+<form method="post" action="/reconciliation/finalize">
+    <input type="hidden" name="session_id" value="{{ session_id }}">
+    <input type="hidden" name="account_id" value="{{ account_id }}">
+    <input type="hidden" name="approved_matches" id="approved_matches_input" value="">
+
+    <!-- Auto-Matched Section -->
+    <div class="section-header">
+        <h2>✓ Auto-Matched Transactions</h2>
+        <span class="badge badge-success">{{ auto_matched|length }} matches</span>
+    </div>
+    
+    {% if auto_matched %}
+    <div class="match-group">
+        <div class="match-row match-header">
+            <div>Approve</div>
+            <div>CSV (Bank Statement)</div>
+            <div>Manual Entry</div>
+            <div>Confidence</div>
+            <div>Action</div>
+        </div>
+        {% for match in auto_matched %}
+        <div class="match-row">
+            <div>
+                <input type="checkbox" 
+                       class="match-checkbox" 
+                       data-csv-idx="{{ match.csv_idx }}" 
+                       data-manual-id="{{ match.manual_id }}"
+                       checked>
+            </div>
+            <div class="transaction-details">
+                <div>{{ match.csv_row.description }}</div>
+                <div class="transaction-date">{{ match.csv_row.date }}</div>
+                <div class="transaction-amount {{ 'amount-income' if match.csv_row.amount > 0 else 'amount-expense' }}">
+                    ${{ "%.2f"|format(match.csv_row.amount) }}
+                </div>
+            </div>
+            <div class="transaction-details">
+                <div>{{ match.manual_entry.description }}</div>
+                <div class="transaction-date">{{ match.manual_entry.date }}</div>
+                <div class="transaction-amount {{ 'amount-income' if match.manual_entry.amount > 0 else 'amount-expense' }}">
+                    ${{ "%.2f"|format(match.manual_entry.amount) }}
+                </div>
+            </div>
+            <div class="confidence confidence-high">{{ match.score }}%</div>
+            <div>Match</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-section">No auto-matched transactions</div>
+    {% endif %}
+
+    <!-- Review Matches Section -->
+    <div class="section-header">
+        <h2>⚠️ Review These Matches</h2>
+        <span class="badge badge-warning">{{ review_matches|length }} matches</span>
+    </div>
+    
+    {% if review_matches %}
+    <div class="match-group">
+        <div class="match-row match-header">
+            <div>Approve</div>
+            <div>CSV (Bank Statement)</div>
+            <div>Manual Entry</div>
+            <div>Confidence</div>
+            <div>Action</div>
+        </div>
+        {% for match in review_matches %}
+        <div class="match-row">
+            <div>
+                <input type="checkbox" 
+                       class="match-checkbox" 
+                       data-csv-idx="{{ match.csv_idx }}" 
+                       data-manual-id="{{ match.manual_id }}">
+            </div>
+            <div class="transaction-details">
+                <div>{{ match.csv_row.description }}</div>
+                <div class="transaction-date">{{ match.csv_row.date }}</div>
+                <div class="transaction-amount {{ 'amount-income' if match.csv_row.amount > 0 else 'amount-expense' }}">
+                    ${{ "%.2f"|format(match.csv_row.amount) }}
+                </div>
+            </div>
+            <div class="transaction-details">
+                <div>{{ match.manual_entry.description }}</div>
+                <div class="transaction-date">{{ match.manual_entry.date }}</div>
+                <div class="transaction-amount {{ 'amount-income' if match.manual_entry.amount > 0 else 'amount-expense' }}">
+                    ${{ "%.2f"|format(match.manual_entry.amount) }}
+                </div>
+            </div>
+            <div class="confidence confidence-medium">{{ match.score }}%</div>
+            <div>Review</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-section">No medium-confidence matches requiring review</div>
+    {% endif %}
+
+    <!-- Unmatched CSV Section -->
+    <div class="section-header">
+        <h2>❌ Unmatched Bank Statement Entries</h2>
+        <span class="badge badge-error">{{ unmatched_csv|length }} entries</span>
+    </div>
+    
+    {% if unmatched_csv %}
+    <div class="info">These CSV rows will be inserted as new transactions.</div>
+    {% for item in unmatched_csv %}
+    <div class="unmatched-item">
+        <strong>{{ item.csv_row.description }}</strong> — 
+        {{ item.csv_row.date }} — 
+        <span class="{{ 'amount-income' if item.csv_row.amount > 0 else 'amount-expense' }}">
+            ${{ "%.2f"|format(item.csv_row.amount) }}
+        </span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-section">All bank statement entries matched</div>
+    {% endif %}
+
+    <!-- Unmatched Manual Section -->
+    <div class="section-header">
+        <h2>❌ Unmatched Manual Entries</h2>
+        <span class="badge badge-error">{{ unmatched_manual|length }} entries</span>
+    </div>
+    
+    {% if unmatched_manual %}
+    <div class="info">These manual entries will be marked as unmatched (not found in bank statement).</div>
+    {% for item in unmatched_manual %}
+    <div class="unmatched-item">
+        <strong>{{ item.manual_entry.description }}</strong> — 
+        {{ item.manual_entry.date }} — 
+        <span class="{{ 'amount-income' if item.manual_entry.amount > 0 else 'amount-expense' }}">
+            ${{ "%.2f"|format(item.manual_entry.amount) }}
+        </span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-section">All manual entries matched</div>
+    {% endif %}
+
+    <button type="submit" id="finalizeBtn">Finalize Reconciliation</button>
+</form>
+
+<script>
+    // Collect all checked matches when form is submitted
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const checkboxes = document.querySelectorAll('.match-checkbox:checked');
+        const approved = [];
+        
+        checkboxes.forEach(cb => {
+            const csvIdx = cb.dataset.csvIdx;
+            const manualId = cb.dataset.manualId;
+            approved.push([parseInt(csvIdx), parseInt(manualId)]);
+        });
+        
+        document.getElementById('approved_matches_input').value = JSON.stringify(approved);
+    });
+</script>
+
+</body>
+</html>
