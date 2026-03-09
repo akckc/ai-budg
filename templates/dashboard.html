@@ -46,6 +46,46 @@
             margin-bottom: 32px;
         }
 
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .row-full {
+            grid-column: 1 / -1;
+        }
+
+        .hidden-card {
+            display: none;
+        }
+
+        .top-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .nav-btn {
+            display: inline-block;
+            padding: 8px 14px;
+            cursor: pointer;
+            background: var(--color-budget);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #6CB6FF;
+        }
+
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-default);
@@ -190,25 +230,29 @@
 <body>
 
 <h1>Household Budget Dashboard</h1>
-<a class="page-link" href="/budgets">Manage Budgets</a>
 
-<div class="grid">
+<div class="dashboard-grid">
 
-    <!-- Balance Card -->
+    <!-- Row 1, Column 1: Navigation -->
     <div class="card">
-        <h3>Current Balance</h3>
-        <div class="big">${{ "%.2f"|format(current_balance) }}</div>
-    </div>
+        <h3>Navigation</h3>
+        <div class="top-nav">
+            <a class="nav-btn" href="/dashboard">/dashboard</a>
+            <a class="nav-btn" href="/upload">/upload</a>
+            <a class="nav-btn" href="/rules">/rules</a>
+            <a class="nav-btn" href="/budgets">/budgets</a>
+            <a class="nav-btn" href="/recurring">/recurring</a>
+            <a class="nav-btn" href="/forecast">/forecast</a>
+            <a class="nav-btn" href="/transactions">/transactions</a>
+        </div>
 
-    <!-- This Month Summary -->
-    <div class="card">
-        <h3>This Month</h3>
+        <p><strong>Current Balance:</strong> ${{ "%.2f"|format(current_balance) }}</p>
         <p class="income">Income: ${{ income }}</p>
         <p class="expense">Expenses: ${{ expenses }}</p>
         <p><strong>Net: ${{ net }}</strong></p>
     </div>
 
-    <!-- Add Transaction -->
+    <!-- Row 1, Column 2: Add Transaction -->
     <div class="card">
         <h3>Add Transaction</h3>
         <form method="post" action="/transactions/manual">
@@ -220,7 +264,9 @@
             <button type="submit">Add</button>
         </form>
     </div>
-    <div class="card">
+
+    <!-- Hidden card: keep for future unhiding -->
+    <div class="card hidden-card">
         <h3>Upcoming (Next 30 Days)</h3>
         <div style="opacity: 0.6;">
             <p>Mortgage — $1,800 — 03/01</p>
@@ -229,8 +275,20 @@
         </div>
         <small>Auto-projection engine coming next.</small>
     </div>
-    <!-- Last 5 Transactions -->
-    <div class="card" style="grid-column: span 2;">
+
+    <!-- Row 2: 14-day burndown chart -->
+    <div class="card row-full">
+        <h3>14-Day Burndown Chart</h3>
+        <div style="width: 100%; height: 400px;">
+            <canvas id="burndownChart"></canvas>
+        </div>
+        <p style="margin-top: 10px; font-size: 0.9em;">
+            Safe-to-Spend in 14 days: <strong id="safe-to-spend-value">calculating...</strong>
+        </p>
+    </div>
+
+    <!-- Row 3: Recent Transactions -->
+    <div class="card row-full">
         <h3>Recent Transactions</h3>
         <table>
             <tr>
@@ -249,7 +307,9 @@
             {% endfor %}
         </table>
     </div>
-    <div class="card">
+
+    <!-- Hidden card: Two Week Outlook -->
+    <div class="card hidden-card">
     <h3>Two-Week Outlook</h3>
     <p>
         Projected Balance: <strong>${{ projected_balance | round(2) }}</strong>
@@ -274,8 +334,8 @@
     {% endif %}
     </div>
 
-    <!-- Two-Week Forecast -->
-<div class="card" style="grid-column: span 2;">
+    <!-- Hidden card: Two Week Forecast -->
+<div class="card hidden-card row-full">
     <h3>Two-Week Forecast</h3>
     <p>
         Projected Balance: 
@@ -297,69 +357,36 @@
     </ul>
 </div>
 
-    <!-- Chart -->
-    <div class="card" style="grid-column: span 2;">
+    <!-- Hidden card: Spending Breakdown this Month -->
+    <div class="card hidden-card row-full">
         <h3>Spending Breakdown (This Month)</h3>
         <div style="width: 400px; height: 400px; margin: auto;">
             <canvas id="categoryChart"></canvas>
         </div>
     </div>
 
-    <!-- Spend vs Budget Summary (Sprint 8) -->
-    <div class="card" style="grid-column: span 2;">
-        <h3>Spend vs Budget</h3>
+    <!-- Row 4: Spend by Category -->
+    <div class="card row-full">
+        <h3>Spend by Category</h3>
         <table>
             <thead>
                 <tr>
                     <th>Category</th>
-                    <th>Budget</th>
                     <th>Spent</th>
-                    <th>Remaining</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in spend_vs_budget %}
                 <tr>
                     <td>{{ item.category }}</td>
-                    <td>{{ item.budget }}</td>
                     <td>{{ item.spent }}</td>
-                    <td>{{ item.remaining }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-
-        <!-- Simple bar representation -->
-        {% for item in spend_vs_budget %}
-        <div style="margin-bottom: 10px;">
-            <strong style="color: var(--text-secondary);">{{ item.category }}</strong>
-            <div style="background: var(--bg-card-hover); width:300px; border-radius: 4px; overflow: hidden;">
-                <div style="
-                    background: var(--color-income);
-                    width: {{ (item.spent / item.budget * 100) if item.budget > 0 else 0 }}%;
-                    color: white;
-                    padding: 4px;
-                    font-size: 12px;
-                ">
-                    {{ item.spent }} / {{ item.budget }}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
     </div>
 
 </div>
-
-    <!-- Burndown Chart -->
-    <div class="card" style="grid-column: span 2;">
-        <h3>14-Day Burndown Chart</h3>
-        <div style="width: 100%; height: 400px;">
-            <canvas id="burndownChart"></canvas>
-        </div>
-        <p style="margin-top: 10px; font-size: 0.9em;">
-            Safe-to-Spend in 14 days: <strong id="safe-to-spend-value">calculating...</strong>
-        </p>
-    </div>
 
 <script>
     // Fetch forecast data and render burndown chart
