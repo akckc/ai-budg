@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from services.reconciliation_service import apply_reconciliation
+from services.ai_categorization_service import run_ai_reclassify_uncategorized
 from typing import Optional
 import json
 
@@ -119,10 +120,31 @@ def finalize_reconciliation_post(
         user_approvals={'approved_indices': approved_indices}
     )
     
+    # Run AI categorization on uncategorized merchants
+    categorization_result = run_ai_reclassify_uncategorized(max_merchants=50)
+    result['categorization'] = {
+        'merchants_processed': categorization_result.get('merchants_processed', 0),
+        'transactions_updated': categorization_result.get('transactions_updated', 0),
+        'cache_hits': categorization_result.get('cache_hits', 0),
+        'ai_calls': categorization_result.get('ai_calls', 0),
+    }
+    
     # Clean up session
     del _reconciliation_sessions[session_id]
     
     if result['status'] == 'success':
+        categorization = result.get('categorization', {})
+        categorization_html = ""
+        if categorization.get('merchants_processed', 0) > 0:
+            categorization_html = f"""
+        <p><strong>Categorization:</strong></p>
+        <ul>
+            <li>Merchants processed: {categorization.get('merchants_processed', 0)}</li>
+            <li>Transactions categorized: {categorization.get('transactions_updated', 0)}</li>
+            <li>Cache hits: {categorization.get('cache_hits', 0)}</li>
+            <li>AI calls: {categorization.get('ai_calls', 0)}</li>
+        </ul>
+        """
         return HTMLResponse(content=f"""
 <!DOCTYPE html>
 <html>
@@ -148,6 +170,14 @@ def finalize_reconciliation_post(
             color: var(--color-income);
             padding: 16px;
             border-radius: 6px;
+            margin-bottom: 16px;
+        }}
+        ul {{
+            margin: 8px 0;
+            padding-left: 20px;
+        }}
+        li {{
+            margin: 4px 0;
         }}
         a {{
             color: #58A6FF;
@@ -161,6 +191,7 @@ def finalize_reconciliation_post(
         <strong>✓ Reconciliation successful</strong>
         <p>Matched: {result['matched_count']} transactions</p>
         <p>Inserted: {result['inserted_count']} new transactions</p>
+        {categorization_html}
     </div>
     <p><a href="/dashboard">→ Go to Dashboard</a></p>
 </body>
