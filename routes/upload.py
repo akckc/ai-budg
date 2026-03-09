@@ -281,6 +281,8 @@ def upload_csv(
                 "review_matches": reconciliation_result["review_matches"],
                 "unmatched_csv": reconciliation_result["unmatched_csv"],
                 "unmatched_manual": reconciliation_result["unmatched_manual"],
+                "csv_rows": reconciliation_result["csv_rows"],
+                "manual_entries": reconciliation_result["manual_entries"],
             })
             
             # Redirect to reconciliation review page
