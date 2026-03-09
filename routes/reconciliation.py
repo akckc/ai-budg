@@ -88,7 +88,7 @@ def reconciliation_review_page(request: Request, session_id: str):
 @router.post("/reconciliation/finalize", response_class=HTMLResponse)
 def finalize_reconciliation_post(
     session_id: str = Form(...),
-    account_id: int = Form(...),
+    account_id: str = Form(...),
     approved_matches: Optional[str] = Form(None),  # JSON string of [[csv_idx, manual_id], ...]
 ):
     """
@@ -96,6 +96,15 @@ def finalize_reconciliation_post(
     
     Applies approved matches, inserts unmatched CSV rows, updates reconciliation status.
     """
+    # Convert account_id to int
+    try:
+        account_id = int(account_id)
+    except (ValueError, TypeError):
+        return HTMLResponse(
+            content="<h1>Invalid Account ID</h1>",
+            status_code=400
+        )
+    
     if session_id not in _reconciliation_sessions:
         return HTMLResponse(
             content="<h1>Session not found</h1>",
