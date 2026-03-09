@@ -4,16 +4,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from services.reconciliation_service import apply_reconciliation
 from typing import Optional
 import json
-import logging
-
-# Add logging
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 # Temporary in-memory storage for reconciliation session data
-# In production, this would be stored in Redis or a session table
 _reconciliation_sessions = {}
 
 
@@ -29,12 +24,9 @@ def reconciliation_review_page(request: Request, session_id: str):
         )
     
     data = _reconciliation_sessions[session_id]
-    
-    # Prepare display data
     csv_rows = data['csv_rows']
     manual_entries = data['manual_entries']
     
-    # Build lookup maps
     manual_map = {m['id']: m for m in manual_entries}
     
     auto_matched_display = []
@@ -89,52 +81,46 @@ def finalize_reconciliation_post(
 ):
     """
     Process user approvals and finalize reconciliation.
-    
-    Applies approved matches, inserts unmatched CSV rows, updates reconciliation status.
     """
-    logger.info(f"DEBUG: finalize_reconciliation_post called")
-    logger.info(f"DEBUG: session_id={session_id}")
-    logger.info(f"DEBUG: account_id={account_id}")
-    logger.info(f"DEBUG: approved_matches={approved_matches}")
+    print(f"\n=== FINALIZE START ===")
+    print(f"session_id: {session_id}")
+    print(f"account_id: {account_id}")
+    print(f"approved_matches: {approved_matches}")
+    print(f"Sessions in memory: {list(_reconciliation_sessions.keys())}")
     
     if session_id not in _reconciliation_sessions:
-        logger.error(f"DEBUG: Session {session_id} not found in _reconciliation_sessions")
-        logger.error(f"DEBUG: Available sessions: {list(_reconciliation_sessions.keys())}")
+        print(f"ERROR: Session {session_id} NOT FOUND!")
         return HTMLResponse(
             content="<h1>Session not found</h1>",
             status_code=404
         )
     
+    print(f"Session FOUND!")
     reconciliation_data = _reconciliation_sessions[session_id]
-    logger.info(f"DEBUG: reconciliation_data keys: {reconciliation_data.keys()}")
+    print(f"reconciliation_data keys: {reconciliation_data.keys()}")
     
-    # Parse approved matches from form
     approved_indices = []
     if approved_matches:
         try:
             approved_list = json.loads(approved_matches)
             approved_indices = [(int(csv_idx), int(manual_id)) for csv_idx, manual_id in approved_list]
-            logger.info(f"DEBUG: Parsed {len(approved_indices)} approved matches")
+            print(f"Parsed approved_matches: {approved_indices}")
         except (json.JSONDecodeError, ValueError) as e:
-            logger.error(f"DEBUG: Failed to parse approved_matches: {e}")
-            pass
+            print(f"Failed to parse approved_matches: {e}")
     
     try:
-        # Convert account_id to int
         account_id_int = int(account_id)
+        print(f"account_id converted to int: {account_id_int}")
         
-        logger.info(f"DEBUG: Calling apply_reconciliation with account_id={account_id_int}")
-        
-        # Apply reconciliation
+        print(f"Calling apply_reconciliation...")
         result = apply_reconciliation(
             account_id=account_id_int,
             reconciliation_data=reconciliation_data,
             user_approvals={'approved_indices': approved_indices}
         )
         
-        logger.info(f"DEBUG: apply_reconciliation returned: {result}")
+        print(f"apply_reconciliation result: {result}")
         
-        # Clean up session
         del _reconciliation_sessions[session_id]
         
         if result['status'] == 'success':
@@ -219,7 +205,9 @@ def finalize_reconciliation_post(
             """, status_code=500)
     
     except Exception as e:
-        logger.exception(f"DEBUG: Exception in finalize_reconciliation_post: {e}")
+        print(f"EXCEPTION: {e}")
+        import traceback
+        traceback.print_exc()
         return HTMLResponse(content=f"""
 <!DOCTYPE html>
 <html>
@@ -237,4 +225,8 @@ def finalize_reconciliation_post(
 
 def store_reconciliation_session(session_id: str, data: dict):
     """Store reconciliation session data for later retrieval."""
+    print(f"\n=== STORING SESSION ===")
+    print(f"session_id: {session_id}")
+    print(f"data keys: {data.keys()}")
     _reconciliation_sessions[session_id] = data
+    print(f"Total sessions in memory: {len(_reconciliation_sessions)}")
