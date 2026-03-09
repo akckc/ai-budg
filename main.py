@@ -9,6 +9,7 @@ from routes.budgets import router as budgets_router
 from routes.recurring import router as recurring_router
 from routes.upload import router as upload_router
 from routes.ai import router as ai_router
+from routes.reconciliation import router as reconciliation_router
 
 app = FastAPI()
 
@@ -23,4 +24,5 @@ app.include_router(budgets_router)
 app.include_router(recurring_router)
 app.include_router(upload_router)
 app.include_router(ai_router)
+app.include_router(reconciliation_router)
 

@@ -60,7 +60,9 @@ def init_db():
             amount DOUBLE NOT NULL,
             balance DOUBLE,
             category TEXT,
-            source TEXT,
+            source TEXT DEFAULT 'manual',
+            source_id TEXT,
+            reconciliation_status TEXT DEFAULT 'pending',
             user_id BIGINT,
             merchant_id BIGINT,
             merchant_normalized TEXT,
@@ -70,6 +72,14 @@ def init_db():
         """)
         
         log_info("Transactions table ensured.")
+        
+        # Backfill existing transactions with default reconciliation values
+        conn.execute("""
+        UPDATE transactions 
+        SET source = 'manual', reconciliation_status = 'matched' 
+        WHERE source IS NULL OR reconciliation_status IS NULL;
+        """)
+        log_info("Transactions backfilled with reconciliation defaults.")
 
         # Category rules table
         conn.execute("CREATE SEQUENCE IF NOT EXISTS category_rules_id_seq;")
