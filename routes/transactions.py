@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.templating import Jinja2Templates
 from typing import Optional
 
 from services.transaction_service import (
@@ -9,6 +10,29 @@ from services.transaction_service import (
 )
 
 router = APIRouter()
+templates = Jinja2Templates(directory="templates")
+
+# Standard allowed categories for dropdown
+ALLOWED_CATEGORIES = [
+    "Car Insurance",
+    "Car Payment",
+    "Car Repairs/Maintenance",
+    "Clothing",
+    "Credit Cards",
+    "Gas",
+    "Groceries",
+    "Health/Fitness",
+    "Home Improvement",
+    "Income",
+    "Life Insurance",
+    "Mortgage",
+    "Pet Care",
+    "Restaurant",
+    "Student Loans",
+    "Subscriptions",
+    "Transfer",
+    "Utilities",
+]
 
 
 # -------------------------
@@ -41,14 +65,16 @@ def get_transactions_from_db():
 
 @router.get("/transactions")
 def get_transactions(
+    request: Request,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     category: Optional[str] = None,
     account_id: Optional[int] = None,
 ):
+    """Render transactions page with inline category editing."""
     if start_date is None and end_date is None and category is None and account_id is None:
         transactions = get_all_transactions()
-        # Convert tuples to dicts for consistent JSON response
+        # Convert tuples to dicts for template rendering
         tx_dicts = [
             {
                 "id": t[0],
@@ -57,7 +83,7 @@ def get_transactions(
                 "description": t[3],
                 "amount": t[4],
                 "balance": t[5],
-                "category": t[6],
+                "category": t[6] if t[6] else "",
                 "source": t[7],
                 "user_id": t[8],
                 "merchant_id": t[9],
@@ -66,16 +92,22 @@ def get_transactions(
             }
             for t in transactions
         ]
-        return {"transactions": tx_dicts}
-
-    return {
-        "transactions": get_filtered_transactions(
+    else:
+        tx_dicts = get_filtered_transactions(
             start_date=start_date,
             end_date=end_date,
             category=category,
             account_id=account_id,
         )
-    }
+
+    return templates.TemplateResponse(
+        "transactions.html",
+        {
+            "request": request,
+            "transactions": tx_dicts,
+            "allowed_categories": ALLOWED_CATEGORIES,
+        },
+    )
 
 
 # -------------------------
