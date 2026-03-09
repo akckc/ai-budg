@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Transactions</title>
+    <style>
+        :root {
+            --bg-main: #2F2F2F;
+            --bg-card: #3A3A3A;
+            --bg-card-hover: #444444;
+            --border-default: #505050;
+            --text-primary: #F2F2F2;
+            --text-secondary: #C8C8C8;
+            --text-muted: #9A9A9A;
+            --color-income: #3FB950;
+            --color-expense: #F85149;
+            --color-budget: #58A6FF;
+            --color-warning: #F2CC60;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 32px;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        h1 {
+            margin: 0 0 32px 0;
+            font-size: 28px;
+            color: var(--text-primary);
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--color-budget);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-default);
+            background: var(--bg-card);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-default);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .income {
+            color: var(--color-income);
+            font-weight: 600;
+        }
+
+        .expense {
+            color: var(--color-expense);
+            font-weight: 600;
+        }
+
+        select {
+            padding: 6px 8px;
+            background: var(--bg-main);
+            border: 1px solid var(--border-default);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--color-budget);
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+        }
+
+        select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .status-success {
+            background: var(--color-income);
+            color: #1B1F23;
+        }
+
+        .status-error {
+            background: var(--color-expense);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .truncate {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .summary {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .summary-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 16px;
+            flex: 1;
+        }
+
+        .summary-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<h1>All Transactions</h1>
+<a class="nav-link" href="/dashboard">← Back to Dashboard</a>
+
+<div class="summary">
+    <div class="summary-item">
+        <div class="summary-label">Total Transactions</div>
+        <div class="summary-value">{{ transactions|length }}</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-label">Total Income</div>
+        <div class="summary-value income">
+            ${{ "%.2f"|format(transactions|selectattr("amount", "gt", 0)|map(attribute="amount")|sum) }}
+        </div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-label">Total Expenses</div>
+        <div class="summary-value expense">
+            ${{ "%.2f"|format((transactions|selectattr("amount", "lt", 0)|map(attribute="amount")|sum) * -1) }}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Description</th>
+                <th>Merchant</th>
+                <th>Amount</th>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td>{{ tx.id }}</td>
+                <td>{{ tx.date }}</td>
+                <td>{{ tx.account_name }}</td>
+                <td class="truncate" title="{{ tx.description }}">{{ tx.description }}</td>
+                <td class="truncate" title="{{ tx.merchant_normalized or '' }}">
+                    {{ tx.merchant_normalized or '—' }}
+                </td>
+                <td class="{{ 'income' if tx.amount > 0 else 'expense' }}">
+                    ${{ "%.2f"|format(tx.amount) }}
+                </td>
+                <td>
+                    <select 
+                        class="category-select" 
+                        data-transaction-id="{{ tx.id }}"
+                        data-original-category="{{ tx.category }}">
+                        <option value="">— Uncategorized —</option>
+                        {% for cat in allowed_categories %}
+                        <option value="{{ cat }}" {{ 'selected' if tx.category == cat else '' }}>
+                            {{ cat }}
+                        </option>
+                        {% endfor %}
+                        {% if tx.category and tx.category not in allowed_categories %}
+                        <option value="{{ tx.category }}" selected>{{ tx.category }} (Other)</option>
+                        {% endif %}
+                        <option value="Other">Other</option>
+                    </select>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="status-message" id="statusMessage"></div>
+
+<script>
+    // Handle category change via AJAX
+    document.querySelectorAll('.category-select').forEach(select => {
+        select.addEventListener('change', async function() {
+            const transactionId = this.dataset.transactionId;
+            const originalCategory = this.dataset.originalCategory;
+            const newCategory = this.value;
+
+            // If "Other" is selected, prompt for custom category
+            let categoryToSave = newCategory;
+            if (newCategory === 'Other') {
+                categoryToSave = prompt('Enter custom category:');
+                if (!categoryToSave) {
+                    // User cancelled - revert selection
+                    this.value = originalCategory;
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch(`/transactions/${transactionId}/category?category=${encodeURIComponent(categoryToSave)}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    showStatus('Category updated successfully', 'success');
+                    // Update original category in case of further edits
+                    this.dataset.originalCategory = categoryToSave;
+                    
+                    // If custom category was entered, update dropdown
+                    if (newCategory === 'Other') {
+                        const customOption = document.createElement('option');
+                        customOption.value = categoryToSave;
+                        customOption.textContent = `${categoryToSave} (Other)`;
+                        customOption.selected = true;
+                        this.insertBefore(customOption, this.querySelector('option[value="Other"]'));
+                    }
+                } else {
+                    showStatus('Failed to update category', 'error');
+                    // Revert selection on error
+                    this.value = originalCategory;
+                }
+            } catch (error) {
+                showStatus('Network error: ' + error.message, 'error');
+                // Revert selection on error
+                this.value = originalCategory;
+            }
+        });
+    });
+
+    function showStatus(message, type) {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.textContent = message;
+        statusEl.className = `status-message status-${type}`;
+        statusEl.style.display = 'block';
+
+        setTimeout(() => {
+            statusEl.style.display = 'none';
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
