@@ -239,6 +239,22 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                 continue  # Skip if user manually approved a match
             
             csv_row = csv_rows[csv_idx]
+
+            # Check if transaction already exists (duplicate detection)
+            existing = conn.execute("""
+            SELECT id FROM transactions
+            WHERE account_id = ? AND date = ? AND description = ? AND amount = ?
+            """, [
+                account_id,
+                csv_row.get('date'),
+                csv_row.get('description'),
+                csv_row.get('amount')
+            ]).fetchone()
+
+            if existing:
+                # Duplicate found, skip it silently
+                continue
+
             conn.execute("""
             INSERT INTO transactions 
             (account_id, date, description, amount, balance, category, source, source_id, reconciliation_status)
