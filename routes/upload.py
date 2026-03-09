@@ -277,6 +277,7 @@ def upload_csv(
             # Store session data for review page
             store_reconciliation_session(session_id, {
                 "account_id": resolved_account_id,
+                "session_id": session_id,
                 "auto_matched": reconciliation_result["auto_matched"],
                 "review_matches": reconciliation_result["review_matches"],
                 "unmatched_csv": reconciliation_result["unmatched_csv"],
