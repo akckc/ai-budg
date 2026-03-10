@@ -160,6 +160,46 @@
             text-overflow: ellipsis;
         }
 
+        .delete-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        #delete-btn {
+            padding: 8px 16px;
+            background: var(--color-expense);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        #delete-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #delete-btn:not(:disabled):hover {
+            opacity: 0.85;
+        }
+
+        .cb-col {
+            width: 40px;
+            text-align: center;
+        }
+
+        input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+            accent-color: var(--color-expense);
+        }
+
         .summary {
             display: flex;
             gap: 24px;
@@ -213,9 +253,14 @@
 </div>
 
 <div class="card">
+    <div class="delete-bar">
+        <button id="delete-btn" onclick="deleteSelected()" disabled>Delete Selected</button>
+        <span id="selected-count" style="color: var(--text-secondary); font-size: 13px;"></span>
+    </div>
     <table>
         <thead>
             <tr>
+                <th class="cb-col"><input type="checkbox" id="select-all" title="Select all"></th>
                 <th>ID</th>
                 <th>Date</th>
                 <th>Account</th>
@@ -228,6 +273,7 @@
         <tbody>
             {% for tx in transactions %}
             <tr>
+                <td class="cb-col"><input type="checkbox" class="transaction-checkbox" data-id="{{ tx.id }}"></td>
                 <td>{{ tx.id }}</td>
                 <td>{{ tx.date }}</td>
                 <td>{{ tx.account_name }}</td>
@@ -325,6 +371,62 @@
         setTimeout(() => {
             statusEl.style.display = 'none';
         }, 3000);
+    }
+
+    // ---- Delete selected logic ----
+    const deleteBtn = document.getElementById('delete-btn');
+    const selectAllCb = document.getElementById('select-all');
+    const selectedCountEl = document.getElementById('selected-count');
+
+    function updateDeleteBar() {
+        const checked = document.querySelectorAll('.transaction-checkbox:checked');
+        deleteBtn.disabled = checked.length === 0;
+        selectedCountEl.textContent = checked.length > 0 ? `${checked.length} selected` : '';
+    }
+
+    document.querySelectorAll('.transaction-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            updateDeleteBar();
+            const allCbs = document.querySelectorAll('.transaction-checkbox');
+            const checkedCbs = document.querySelectorAll('.transaction-checkbox:checked');
+            selectAllCb.indeterminate = checkedCbs.length > 0 && checkedCbs.length < allCbs.length;
+            selectAllCb.checked = checkedCbs.length === allCbs.length && allCbs.length > 0;
+        });
+    });
+
+    selectAllCb.addEventListener('change', function() {
+        document.querySelectorAll('.transaction-checkbox').forEach(cb => {
+            cb.checked = this.checked;
+        });
+        updateDeleteBar();
+    });
+
+    function deleteSelected() {
+        const checkedIds = Array.from(document.querySelectorAll('.transaction-checkbox:checked'))
+            .map(cb => parseInt(cb.dataset.id));
+
+        if (checkedIds.length === 0) return;
+
+        if (!confirm(`Are you sure you want to delete ${checkedIds.length} transaction(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        fetch('/transactions/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_ids: checkedIds }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(err => {
+            alert('Network error: ' + err.message);
+        });
     }
 </script>
 

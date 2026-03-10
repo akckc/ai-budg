@@ -7,6 +7,7 @@ from services.transaction_service import (
     update_transaction_category,
     reclassify_all_transactions,
     get_filtered_transactions,
+    delete_transactions,
 )
 
 router = APIRouter()
@@ -132,3 +133,35 @@ def reclassify():
     """
     updated_count = reclassify_all_transactions()
     return {"success": True, "updated": updated_count}
+
+
+# -------------------------
+# DELETE TRANSACTIONS
+# -------------------------
+
+@router.post("/transactions/delete")
+async def delete_selected_transactions(request: Request):
+    """Delete transactions by ID.
+
+    Accepts JSON body: ``{"transaction_ids": [1, 2, 3]}``
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return {"status": "error", "error": "Invalid JSON in request body"}
+    transaction_ids = data.get("transaction_ids", [])
+
+    if not transaction_ids:
+        return {"status": "error", "error": "No transactions selected"}
+
+    # Validate all IDs are integers
+    try:
+        transaction_ids = [int(tid) for tid in transaction_ids]
+    except (ValueError, TypeError):
+        return {"status": "error", "error": "Invalid transaction IDs"}
+
+    try:
+        deleted_count = delete_transactions(transaction_ids)
+        return {"status": "success", "deleted_count": deleted_count}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
