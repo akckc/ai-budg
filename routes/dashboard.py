@@ -120,7 +120,7 @@ async def add_manual_transaction_form(request: Request):
         amount = float(raw_amount)
         balance = float(data.get("balance")) if data.get("balance") not in (None, "") else None
         category = data.get("category")
-        source = data.get("source", "Manual")
+        source = data.get("source", "manual")
     else:
         form = await request.form()
         account_name = form.get("account_name", "Primary Account")
@@ -132,7 +132,7 @@ async def add_manual_transaction_form(request: Request):
         amount = float(raw_amount)
         balance = float(form.get("balance")) if form.get("balance") not in (None, "") else None
         category = form.get("category")
-        source = form.get("source", "Manual")
+        source = form.get("source", "manual")
 
     account = get_or_create_account(account_name)
     account_id = account["id"]

@@ -32,7 +32,7 @@ def update_transaction_category(transaction_id, category):
 
 
 def add_transaction(*, date, description, amount,
-                    balance=None, category=None, source='Manual',
+                    balance=None, category=None, source='manual',
                     user_id=None, merchant_id=None,
                     account_id=None, account_name=None):
     """Service wrapper around repository insert.
