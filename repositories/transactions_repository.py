@@ -181,3 +181,24 @@ def delete_transaction(conn, transaction_id):
         "DELETE FROM transactions WHERE id = ?",
         (transaction_id,)
     )
+
+def delete_transactions(conn, transaction_ids: list[int]) -> int:
+    """
+    Deletes multiple transactions by their IDs.
+
+    Returns the number of rows actually deleted.
+    """
+    if not transaction_ids:
+        return 0
+    placeholders = ", ".join("?" for _ in transaction_ids)
+    # Count rows that actually exist before deleting
+    existing = conn.execute(
+        f"SELECT COUNT(*) FROM transactions WHERE id IN ({placeholders})",
+        transaction_ids,
+    ).fetchone()
+    actual_count = existing[0] if existing else 0
+    conn.execute(
+        f"DELETE FROM transactions WHERE id IN ({placeholders})",
+        transaction_ids,
+    )
+    return actual_count

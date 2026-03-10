@@ -5,6 +5,7 @@ from repositories.transactions_repository import (
     insert_transaction as repo_insert_transaction,
     get_transaction_by_id as repo_get_transaction_by_id,
     get_transactions_filtered as repo_get_transactions_filtered,
+    delete_transactions as repo_delete_transactions,
 )
 from repositories.category_rules_repository import get_all_category_rules
 from services.category_rule_engine import evaluate_category
@@ -143,5 +144,14 @@ def get_filtered_transactions(start_date=None, end_date=None, category=None, acc
             category=category,
             account_id=account_id,
         )
+    finally:
+        conn.close()
+
+
+def delete_transactions(transaction_ids: list[int]) -> int:
+    """Delete transactions by their IDs. Returns number deleted."""
+    conn = get_db()
+    try:
+        return repo_delete_transactions(conn, transaction_ids)
     finally:
         conn.close()
