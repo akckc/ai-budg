@@ -126,68 +126,107 @@ def get_unreconciled_manual_entries(conn, account_id: int) -> List[dict]:
     ]
 
 
+def get_all_entries(conn, account_id: int) -> List[dict]:
+    """
+    Query ALL transactions (manual + CSV + others) for an account, regardless of
+    reconciliation status. Used to detect duplicates when importing new CSV data,
+    including transactions from prior CSV imports that may already be reconciled.
+
+    Returns list of dicts with keys: id, date, amount, description, merchant, category, source
+    """
+    query = """
+    SELECT id, date, amount, description, merchant_normalized, category, source
+    FROM transactions
+    WHERE account_id = ?
+    ORDER BY date DESC
+    """
+    rows = conn.execute(query, [account_id]).fetchall()
+
+    return [
+        {
+            'id': r[0],
+            'date': str(r[1]),
+            'amount': r[2],
+            'description': r[3],
+            'merchant': r[4] or r[3],  # fallback to description if no merchant
+            'category': r[5],
+            'source': r[6],
+        }
+        for r in rows
+    ]
+
+
 def reconcile_csv_with_manual(conn, account_id: int, csv_rows: List[dict]) -> dict:
     """
-    Match CSV rows against existing manual entries using fuzzy matching.
-    
+    Match CSV rows against ALL existing transactions using fuzzy matching.
+
+    Checks for duplicates against manual entries, prior CSV imports, and any other
+    existing transactions to prevent duplicate insertions.
+
     Inputs:
     - conn: Database connection
     - account_id: User's account ID
     - csv_rows: List of dicts with 'date', 'amount', 'merchant', 'description'
-    
+
     Returns:
     - result: dict with keys:
-      * 'auto_matched': list of (csv_idx, manual_id, score) tuples (score >=90%)
-      * 'review_matches': list of (csv_idx, manual_id, score) tuples (70-89%)
+      * 'auto_matched': list of (csv_idx, existing_id, score) tuples (score >=90%)
+      * 'review_matches': list of (csv_idx, existing_id, score) tuples (70-89%)
       * 'unmatched_csv': list of csv_idx values
-      * 'unmatched_manual': list of manual_id values
+      * 'unmatched_manual': list of manual entry IDs not matched (for finalization)
       * 'session_id': unique ID for this reconciliation session
       * 'csv_rows': original CSV data for later use
-    
+      * 'existing_entries': all existing transactions used for matching
+
     Deterministic: Same inputs always produce same output.
     No side effects on DB; only reads.
     """
     session_id = str(uuid.uuid4())
-    
-    # Get all unreconciled manual entries
-    manual_entries = get_unreconciled_manual_entries(conn, account_id)
-    
+
+    # Query ALL existing transactions (not just manual!)
+    existing_entries = get_all_entries(conn, account_id)
+
     auto_matched = []
     review_matches = []
     matched_csv_indices = set()
-    matched_manual_ids = set()
-    
-    # For each CSV row, find best manual match
+    matched_existing_ids = set()
+
+    # For each CSV row, find best match against ALL existing transactions
     for csv_idx, csv_row in enumerate(csv_rows):
         best_score = 0.0
-        best_manual_id = None
-        
-        for manual_entry in manual_entries:
-            if manual_entry['id'] in matched_manual_ids:
+        best_existing_id = None
+
+        for existing_entry in existing_entries:
+            if existing_entry['id'] in matched_existing_ids:
                 # Already matched to another CSV row
                 continue
-            
-            score = score_match(csv_row, manual_entry)
-            
+
+            score = score_match(csv_row, existing_entry)
+
             if score > best_score:
                 best_score = score
-                best_manual_id = manual_entry['id']
-        
+                best_existing_id = existing_entry['id']
+
         # Classify based on confidence threshold
         if best_score >= 90.0:
-            auto_matched.append((csv_idx, best_manual_id, best_score))
+            auto_matched.append((csv_idx, best_existing_id, best_score))
             matched_csv_indices.add(csv_idx)
-            matched_manual_ids.add(best_manual_id)
+            matched_existing_ids.add(best_existing_id)
         elif best_score >= 70.0:
-            review_matches.append((csv_idx, best_manual_id, best_score))
+            review_matches.append((csv_idx, best_existing_id, best_score))
             matched_csv_indices.add(csv_idx)
-            matched_manual_ids.add(best_manual_id)
-        # else: unmatched CSV row
-    
-    # Identify unmatched CSV rows and manual entries
+            matched_existing_ids.add(best_existing_id)
+        # else: unmatched CSV row (new transaction to insert)
+
+    # Identify unmatched CSV rows
     unmatched_csv = [i for i in range(len(csv_rows)) if i not in matched_csv_indices]
-    unmatched_manual = [m['id'] for m in manual_entries if m['id'] not in matched_manual_ids]
-    
+
+    # Only mark manual entries as unmatched (not prior CSV imports)
+    unmatched_manual = [
+        e['id'] for e in existing_entries
+        if e['id'] not in matched_existing_ids and e.get('source') == 'manual'
+    ]
+
     return {
         'auto_matched': auto_matched,
         'review_matches': review_matches,
@@ -195,7 +234,7 @@ def reconcile_csv_with_manual(conn, account_id: int, csv_rows: List[dict]) -> di
         'unmatched_manual': unmatched_manual,
         'session_id': session_id,
         'csv_rows': csv_rows,  # Store for finalization
-        'manual_entries': manual_entries,  # Store for display
+        'existing_entries': existing_entries,  # All entries used for matching and display
     }
 
 
@@ -230,29 +269,47 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
     try:
         csv_rows = reconciliation_data['csv_rows']
         approved_set = set(approvals.get('approved_indices', []))
-        
-        # Apply approved matches: Update manual entries with CSV data
-        for csv_idx, manual_id in approved_set:
+
+        # Build a lookup map of existing entries for source-aware matching
+        existing_entries = reconciliation_data.get('existing_entries', reconciliation_data.get('manual_entries', []))
+        existing_entries_map = {e['id']: e for e in existing_entries}
+
+        # Apply approved matches
+        for csv_idx, existing_id in approved_set:
             csv_row = csv_rows[csv_idx]
-            
-            conn.execute("""
-            UPDATE transactions
-            SET source = 'csv',
-                source_id = ?,
-                reconciliation_status = 'matched',
-                amount = ?,
-                description = ?,
-                date = ?,
-                balance = ?
-            WHERE id = ?
-            """, [
-                reconciliation_data['session_id'],
-                csv_row.get('amount'),
-                csv_row.get('description'),
-                csv_row.get('date'),
-                csv_row.get('balance'),
-                manual_id
-            ])
+            existing_entry = existing_entries_map.get(existing_id, {})
+
+            if existing_entry.get('source') == 'manual':
+                # Manual entry: update with authoritative CSV data
+                conn.execute("""
+                UPDATE transactions
+                SET source = 'csv',
+                    source_id = ?,
+                    reconciliation_status = 'matched',
+                    amount = ?,
+                    description = ?,
+                    date = ?,
+                    balance = ?
+                WHERE id = ?
+                """, [
+                    reconciliation_data['session_id'],
+                    csv_row.get('amount'),
+                    csv_row.get('description'),
+                    csv_row.get('date'),
+                    csv_row.get('balance'),
+                    existing_id
+                ])
+            else:
+                # Existing CSV (or other) entry: just mark as matched, preserve original data
+                conn.execute("""
+                UPDATE transactions
+                SET reconciliation_status = 'matched',
+                    source_id = ?
+                WHERE id = ?
+                """, [
+                    reconciliation_data['session_id'],
+                    existing_id
+                ])
             matched_count += 1
         
         # Insert unmatched CSV rows as new transactions
