@@ -25,9 +25,10 @@ def reconciliation_review_page(request: Request, session_id: str):
     
     data = _reconciliation_sessions[session_id]
     csv_rows = data['csv_rows']
-    manual_entries = data['manual_entries']
-    
-    manual_map = {m['id']: m for m in manual_entries}
+    # Support both old 'manual_entries' key and new 'existing_entries' key
+    existing_entries = data.get('existing_entries', data.get('manual_entries', []))
+
+    manual_map = {m['id']: m for m in existing_entries}
     
     auto_matched_display = []
     for csv_idx, manual_id, score in data['auto_matched']:
