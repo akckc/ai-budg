@@ -283,7 +283,7 @@ def upload_csv(
                 "unmatched_csv": reconciliation_result["unmatched_csv"],
                 "unmatched_manual": reconciliation_result["unmatched_manual"],
                 "csv_rows": reconciliation_result["csv_rows"],
-                "manual_entries": reconciliation_result["manual_entries"],
+                "existing_entries": reconciliation_result["existing_entries"],
             })
             
             # Redirect to reconciliation review page
