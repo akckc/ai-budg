@@ -1,5 +1,8 @@
+import csv
+import io
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from services.recurring_service import (
@@ -216,6 +219,22 @@ def recurring_page():
                     padding: 16px;
                 }
             }
+
+            .export-btn {
+                display: inline-block;
+                padding: 8px 14px;
+                background: var(--color-budget);
+                color: white;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 14px;
+                text-decoration: none;
+            }
+
+            .export-btn:hover {
+                background: #6CB6FF;
+                text-decoration: none;
+            }
         </style>
     </head>
     <body>
@@ -274,7 +293,10 @@ def recurring_page():
         </div>
 
         <div class="card">
-            <h3>Existing Recurring Events</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">Existing Recurring Events</h3>
+                <a href="/recurring/export" class="export-btn">📥 Export to CSV</a>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -421,3 +443,32 @@ def recurring_add(payload: RecurringAddRequest):
 def recurring_toggle(event_id: int, payload: RecurringToggleRequest):
     toggle_recurring_event_active(event_id=event_id, active=payload.active)
     return {"success": True}
+
+
+@router.get("/recurring/export")
+def recurring_export():
+    """Export all recurring events as a CSV download."""
+    data = get_recurring_events(include_inactive=True)
+    events = data["events"]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["account_id", "name", "amount", "category", "frequency", "day_of_month", "anchor_date", "active"])
+    for event in events:
+        writer.writerow([
+            event["account_id"],
+            event["name"],
+            event["amount"],
+            event["category"] or "",
+            event["frequency"],
+            event["day_of_month"] if event["day_of_month"] is not None else "",
+            event["anchor_date"] or "",
+            event["active"],
+        ])
+
+    csv_bytes = io.BytesIO(output.getvalue().encode("utf-8"))
+    return StreamingResponse(
+        csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="recurring-events.csv"'},
+    )
