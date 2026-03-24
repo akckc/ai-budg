@@ -34,15 +34,19 @@ def score_match(csv_row: dict, manual_entry: dict) -> float:
 
     Scoring weights:
     - Amount match (≤2% variance): 40 points
-    - Date match (±1 day):         30 points
+    - Date match (gradual decay):  up to 30 points, 0 at ≥7 days
     - Description similarity:      30 points
+
+    Hard cap: if date distance > 7 days, total score cannot exceed 60.
+    This prevents recurring transactions (e.g. same-amount paychecks) from
+    scoring into the review or auto-match bands.
 
     Deterministic: Same inputs always produce same score.
     No side effects.
     """
     score = 0.0
 
-    # --- Date scoring (weight 30): ±1 day = full 30 points ---
+    # --- Date scoring (weight 30): linear decay from 30 pts (0 days) to 0 pts (7 days) ---
     try:
         csv_date = datetime.strptime(csv_row['date'], '%Y-%m-%d').date()
         manual_date = datetime.strptime(manual_entry['date'], '%Y-%m-%d').date()
@@ -50,9 +54,8 @@ def score_match(csv_row: dict, manual_entry: dict) -> float:
         return 0.0  # Invalid date format
 
     date_diff = abs((csv_date - manual_date).days)
-    if date_diff <= 1:
-        score += 30.0
-    # else: 0 points for dates more than 1 day apart
+    date_score = max(0.0, 30.0 * (1.0 - date_diff / 7.0))
+    score += date_score
 
     # --- Amount scoring (weight 40): ≤2% variance = full 40 points ---
     try:
@@ -93,6 +96,10 @@ def score_match(csv_row: dict, manual_entry: dict) -> float:
             # Sequence similarity fallback for descriptions of similar length
             ratio = SequenceMatcher(None, csv_text, manual_text).ratio()
             score += ratio * 30.0
+
+    # Hard cap: dates more than 7 days apart cannot score above 60
+    if date_diff > 7:
+        return min(score, 60.0)
 
     return min(score, 100.0)  # Cap at 100%
 
@@ -248,7 +255,8 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
     - reconciliation_data: Original reconciliation result from reconcile_csv_with_manual
     - approvals: dict with keys:
       * 'approved_indices': list of (csv_idx, manual_id) tuples to apply
-      * 'rejected_indices': list of (csv_idx, manual_id) tuples to keep separate
+      * 'add_as_new_indices': list of csv_idx values the user wants inserted as new transactions
+        (review-match rows where the user chose "Add as New" instead of "Confirm Match")
     
     Operations:
     - For each approved match: UPDATE transactions with CSV data, mark as matched
@@ -269,6 +277,7 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
     try:
         csv_rows = reconciliation_data['csv_rows']
         approved_set = set(approvals.get('approved_indices', []))
+        add_as_new_set = set(approvals.get('add_as_new_indices', []))
 
         # Build a lookup map of existing entries for source-aware matching
         existing_entries = reconciliation_data.get('existing_entries', reconciliation_data.get('manual_entries', []))
@@ -312,11 +321,12 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                 ])
             matched_count += 1
         
-        # Insert unmatched CSV rows as new transactions
+        # Insert unmatched CSV rows and any review-match rows the user chose "Add as New"
         matched_csv_indices = {idx for idx, _ in approved_set}
-        for csv_idx in reconciliation_data['unmatched_csv']:
+        indices_to_insert = set(reconciliation_data['unmatched_csv']) | add_as_new_set
+        for csv_idx in indices_to_insert:
             if csv_idx in matched_csv_indices:
-                continue  # Skip if user manually approved a match
+                continue  # Skip if user approved a match for this row
             
             csv_row = csv_rows[csv_idx]
 

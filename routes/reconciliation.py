@@ -79,6 +79,7 @@ def finalize_reconciliation_post(
     session_id: str = Form(...),
     account_id: str = Form(...),
     approved_matches: Optional[str] = Form(None),
+    add_as_new_indices: Optional[str] = Form(None),
 ):
     """
     Process user approvals and finalize reconciliation.
@@ -87,6 +88,7 @@ def finalize_reconciliation_post(
     print(f"session_id: {session_id}")
     print(f"account_id: {account_id}")
     print(f"approved_matches: {approved_matches}")
+    print(f"add_as_new_indices: {add_as_new_indices}")
     print(f"Sessions in memory: {list(_reconciliation_sessions.keys())}")
     
     if session_id not in _reconciliation_sessions:
@@ -108,16 +110,27 @@ def finalize_reconciliation_post(
             print(f"Parsed approved_matches: {approved_indices}")
         except (json.JSONDecodeError, ValueError) as e:
             print(f"Failed to parse approved_matches: {e}")
-    
+
+    add_as_new = []
+    if add_as_new_indices:
+        try:
+            add_as_new = [int(idx) for idx in json.loads(add_as_new_indices)]
+            print(f"Parsed add_as_new_indices: {add_as_new}")
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Failed to parse add_as_new_indices: {e}")
+
     try:
         account_id_int = int(account_id)
         print(f"account_id converted to int: {account_id_int}")
-        
+
         print(f"Calling apply_reconciliation...")
         result = apply_reconciliation(
             account_id=account_id_int,
             reconciliation_data=reconciliation_data,
-            user_approvals={'approved_indices': approved_indices}
+            user_approvals={
+                'approved_indices': approved_indices,
+                'add_as_new_indices': add_as_new,
+            }
         )
         
         print(f"apply_reconciliation result: {result}")

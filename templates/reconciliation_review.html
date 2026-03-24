@@ -170,6 +170,48 @@
             cursor: not-allowed;
         }
 
+        /* Row-level action buttons (review matches) */
+        .btn-row-action {
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 6px 0 0;
+            margin-top: 0;
+            opacity: 0.55;
+            transition: opacity 0.15s, box-shadow 0.15s;
+        }
+
+        .btn-row-action:last-child {
+            margin-right: 0;
+        }
+
+        .btn-confirm-match {
+            background: var(--color-income);
+            color: #1B1F23;
+        }
+
+        .btn-add-new {
+            background: var(--color-warning);
+            color: #1B1F23;
+        }
+
+        .btn-row-action:hover {
+            opacity: 0.85;
+        }
+
+        .btn-row-action.btn-active {
+            opacity: 1;
+            box-shadow: 0 0 0 2px #fff;
+        }
+
+        /* Review section uses a 4-column grid (no checkbox column) */
+        .review-match-group .match-row {
+            grid-template-columns: 1fr 1fr 120px auto;
+        }
+
         .back-link {
             display: inline-block;
             margin-bottom: 24px;
@@ -205,14 +247,17 @@
 
 <div class="info">
     <strong>Review Matches</strong><br>
-    CSV bank statement data is authoritative and will supersede manual entries when approved.
-    High-confidence matches (≥90%) are auto-checked for approval. Review medium-confidence matches (70-89%) carefully before finalizing.
+    CSV bank statement data is authoritative and will supersede manual entries when confirmed.
+    High-confidence matches (≥90%) are auto-approved. For medium-confidence matches (70-89%), use the per-row buttons:
+    <strong>Confirm Match</strong> = this CSV row is a duplicate of the manual entry;
+    <strong>Add as New</strong> = this is a real new transaction and should be inserted.
 </div>
 
 <form method="post" action="/reconciliation/finalize">
     <input type="hidden" name="session_id" value="{{ session_id }}">
     <input type="hidden" name="account_id" value="{{ account_id }}">
     <input type="hidden" name="approved_matches" id="approved_matches_input" value="">
+    <input type="hidden" name="add_as_new_indices" id="add_as_new_input" value="">
 
     <!-- Auto-Matched Section -->
     <div class="section-header">
@@ -268,22 +313,15 @@
     </div>
     
     {% if review_matches %}
-    <div class="match-group">
+    <div class="match-group review-match-group">
         <div class="match-row match-header">
-            <div>Approve</div>
             <div>CSV (Bank Statement)</div>
             <div>Manual Entry</div>
             <div>Confidence</div>
             <div>Action</div>
         </div>
         {% for match in review_matches %}
-        <div class="match-row">
-            <div>
-                <input type="checkbox" 
-                       class="match-checkbox" 
-                       data-csv-idx="{{ match.csv_idx }}" 
-                       data-manual-id="{{ match.manual_id }}">
-            </div>
+        <div class="match-row" data-csv-idx="{{ match.csv_idx }}" data-manual-id="{{ match.manual_id }}">
             <div class="transaction-details">
                 <div>{{ match.csv_row.description }}</div>
                 <div class="transaction-date">{{ match.csv_row.date }}</div>
@@ -299,7 +337,10 @@
                 </div>
             </div>
             <div class="confidence confidence-medium">{{ match.score }}%</div>
-            <div>Review</div>
+            <div>
+                <button type="button" class="btn-row-action btn-confirm-match" onclick="decideMatch(this, 'confirm')">Confirm Match</button>
+                <button type="button" class="btn-row-action btn-add-new" onclick="decideMatch(this, 'new')">Add as New</button>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -353,19 +394,61 @@
 </form>
 
 <script>
-    // Collect all checked matches when form is submitted
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const checkboxes = document.querySelectorAll('.match-checkbox:checked');
+    // Track per-row decisions for review matches: csv_idx → {decision, manualId}
+    const decisions = {};
+    const reviewMatchCount = {{ review_matches|length }};
+
+    function decideMatch(btn, decision) {
+        const row = btn.closest('.match-row');
+        const csvIdx = parseInt(row.dataset.csvIdx);
+        const manualId = parseInt(row.dataset.manualId);
+
+        decisions[csvIdx] = { decision, manualId };
+
+        // Highlight the chosen button, dim the other
+        row.querySelectorAll('.btn-row-action').forEach(b => b.classList.remove('btn-active'));
+        btn.classList.add('btn-active');
+
+        updateFinalizeButton();
+    }
+
+    function updateFinalizeButton() {
+        const btn = document.getElementById('finalizeBtn');
+        const remaining = reviewMatchCount - Object.keys(decisions).length;
+        btn.disabled = remaining > 0;
+        btn.title = remaining > 0
+            ? `${remaining} review match${remaining === 1 ? '' : 'es'} still need a decision`
+            : '';
+    }
+
+    // Collect decisions when the form is submitted
+    document.querySelector('form').addEventListener('submit', function() {
+        // Auto-matched: collect all checked checkboxes
         const approved = [];
-        
-        checkboxes.forEach(cb => {
-            const csvIdx = cb.dataset.csvIdx;
-            const manualId = cb.dataset.manualId;
-            approved.push([parseInt(csvIdx), parseInt(manualId)]);
+        document.querySelectorAll('.match-checkbox:checked').forEach(cb => {
+            approved.push([parseInt(cb.dataset.csvIdx), parseInt(cb.dataset.manualId)]);
         });
-        
+
+        // Review matches: split into confirmed (approve) and add-as-new
+        const addAsNew = [];
+        for (const [csvIdx, info] of Object.entries(decisions)) {
+            if (info.decision === 'confirm') {
+                approved.push([parseInt(csvIdx), info.manualId]);
+            } else {
+                addAsNew.push(parseInt(csvIdx));
+            }
+        }
+
         document.getElementById('approved_matches_input').value = JSON.stringify(approved);
+        document.getElementById('add_as_new_input').value = JSON.stringify(addAsNew);
     });
+
+    // Disable Finalize until all review rows have a decision
+    if (reviewMatchCount > 0) {
+        document.getElementById('finalizeBtn').disabled = true;
+        document.getElementById('finalizeBtn').title =
+            `${reviewMatchCount} review match${reviewMatchCount === 1 ? '' : 'es'} need a decision before finalizing`;
+    }
 </script>
 
 </body>
