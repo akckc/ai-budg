@@ -9,15 +9,16 @@ from services.forecast_service import (
 from models.projection_dto import DailyProjection, ProjectionResult
 
 
-def calculate_two_week_projection(as_of_date: Optional[date] = None) -> ProjectionResult:
-    """Deterministic 14-day projection as defined by DA v1.1.
+def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int = 14) -> ProjectionResult:
+    """Deterministic N-day projection as defined by DA v1.1.
 
     Pure function of ledger state, recurring templates, and an optional reference date.
     If ``as_of_date`` is not provided, defaults to ``date.today()``.
+    ``days`` controls the forecast window length (default 14).
     No writes, no side effects, inclusive window definition.
     """
     today = as_of_date if as_of_date is not None else date.today()
-    end_date = today + timedelta(days=14)
+    end_date = today + timedelta(days=days)
 
     # --- starting balance via service/repository chain ---
     txs = get_all_transactions()
@@ -40,7 +41,7 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None) -> Projecti
 
     total_upcoming = 0.0
     for event in events:
-        occurrences = get_occurrences_in_window(event, today, window_days=14)
+        occurrences = get_occurrences_in_window(event, today, window_days=days)
         for occ in occurrences:
             daily_deltas[occ] += event['amount']
             total_upcoming += event['amount']

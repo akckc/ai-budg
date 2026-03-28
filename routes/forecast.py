@@ -8,13 +8,14 @@ router = APIRouter()
 
 
 @router.get("/forecast")
-def get_14_day_forecast(as_of_date: Optional[str] = Query(None)):
+def get_forecast(as_of_date: Optional[str] = Query(None), days: int = Query(14, ge=1, le=365)):
     """
-    Return a deterministic 14-day projection of account balances.
+    Return a deterministic N-day projection of account balances.
 
     Query Parameters:
         as_of_date (optional): Reference date in ISO format (YYYY-MM-DD).
                               Defaults to today if not provided.
+        days (optional): Number of days to forecast (default 14, max 365).
 
     Returns:
         ForecastResponseDTO: JSON containing daily balance timeline and Safe-to-Spend.
@@ -32,7 +33,7 @@ def get_14_day_forecast(as_of_date: Optional[str] = Query(None)):
 
     try:
         # Compute projection using deterministic engine
-        projection = calculate_two_week_projection(as_of_date=as_of)
+        projection = calculate_two_week_projection(as_of_date=as_of, days=days)
 
         # Convert to JSON-serializable DTO
         dto = ForecastResponseDTO.from_projection(projection)
