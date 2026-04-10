@@ -80,7 +80,8 @@ def list_recurring_events(*, include_inactive: bool = True) -> list[dict]:
                 re.frequency,
                 re.day_of_month,
                 re.anchor_date,
-                re.active
+                re.active,
+                re.allow_consume
             FROM recurring_events re
             LEFT JOIN accounts a ON a.id = re.account_id
         """
@@ -105,6 +106,7 @@ def list_recurring_events(*, include_inactive: bool = True) -> list[dict]:
                     "day_of_month": row[7],
                     "anchor_date": anchor.isoformat() if anchor else None,
                     "active": bool(row[9]),
+                    "allow_consume": bool(row[10]) if row[10] is not None else True,
                 }
             )
 

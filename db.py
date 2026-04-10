@@ -153,6 +153,20 @@ def init_db():
         """)
         log_info("Recurring transactions table ensured.")
 
+        # Migration: add allow_consume to recurring_events
+        try:
+            conn.execute("ALTER TABLE recurring_events ADD COLUMN allow_consume BOOLEAN DEFAULT TRUE")
+            log_info("Added allow_consume column to recurring_events.")
+        except Exception:
+            pass  # Column already exists
+
+        # Migration: add recurring_event_id to transactions
+        try:
+            conn.execute("ALTER TABLE transactions ADD COLUMN recurring_event_id BIGINT")
+            log_info("Added recurring_event_id column to transactions.")
+        except Exception:
+            pass  # Column already exists
+
         # AI category suggestions cache table
         conn.execute("""
         CREATE TABLE IF NOT EXISTS ai_category_suggestions (

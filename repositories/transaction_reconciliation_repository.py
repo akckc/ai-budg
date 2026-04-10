@@ -1,8 +1,59 @@
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 import re
 import uuid
+
+
+def _find_matching_recurring_event(conn, amount: float, tx_date) -> Optional[int]:
+    """
+    Find a consumable recurring event matching the given amount and date.
+
+    Matches by:
+    - amount: ≤2% variance against event amount
+    - date: tx_date falls within ±5 days of an expected occurrence
+
+    Returns the event id if found, else None.
+    """
+    from services.forecast_service import get_occurrences_in_window
+
+    if isinstance(tx_date, str):
+        tx_date = datetime.strptime(tx_date, '%Y-%m-%d').date()
+
+    rows = conn.execute("""
+        SELECT id, amount, frequency, day_of_month, anchor_date
+        FROM recurring_events
+        WHERE active = TRUE AND (allow_consume = TRUE OR allow_consume IS NULL)
+    """).fetchall()
+
+    window_start = tx_date - timedelta(days=5)
+
+    for row in rows:
+        event_id, event_amount, frequency, day_of_month, anchor_date = row
+
+        # Amount check: ≤2% variance
+        ref = max(abs(float(amount)), abs(float(event_amount)))
+        if ref == 0:
+            amount_match = float(amount) == float(event_amount)
+        else:
+            amount_match = abs(float(amount) - float(event_amount)) / ref <= 0.02
+
+        if not amount_match:
+            continue
+
+        # Date check: any occurrence within ±5 days of tx_date
+        event_dict = {
+            'frequency': frequency,
+            'day_of_month': day_of_month,
+            'anchor_date': anchor_date,
+            'amount': float(event_amount),
+        }
+        occurrences = get_occurrences_in_window(event_dict, window_start, window_days=10)
+        for occ in occurrences:
+            if abs((tx_date - occ).days) <= 5:
+                return int(event_id)
+
+    return None
 
 
 def _normalize_text(text: str) -> str:
@@ -308,6 +359,10 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                     csv_row.get('balance'),
                     existing_id
                 ])
+                # Tag with recurring_event_id if a matching event is found
+                rec_event_id = _find_matching_recurring_event(
+                    conn, csv_row.get('amount'), csv_row.get('date')
+                )
             else:
                 # Existing CSV (or other) entry: just mark as matched, preserve original data
                 conn.execute("""
@@ -319,6 +374,15 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                     reconciliation_data['session_id'],
                     existing_id
                 ])
+                rec_event_id = _find_matching_recurring_event(
+                    conn, existing_entry.get('amount'), existing_entry.get('date')
+                )
+
+            if rec_event_id is not None:
+                conn.execute(
+                    "UPDATE transactions SET recurring_event_id = ? WHERE id = ?",
+                    [rec_event_id, existing_id]
+                )
             matched_count += 1
         
         # Insert unmatched CSV rows and any review-match rows the user chose "Add as New"
@@ -345,10 +409,11 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                 # Duplicate found, skip it silently
                 continue
 
-            conn.execute("""
-            INSERT INTO transactions 
+            new_row = conn.execute("""
+            INSERT INTO transactions
             (account_id, date, description, amount, balance, category, source, source_id, reconciliation_status)
             VALUES (?, ?, ?, ?, ?, ?, 'csv', ?, 'matched')
+            RETURNING id
             """, [
                 account_id,
                 csv_row.get('date'),
@@ -357,8 +422,19 @@ def finalize_reconciliation(conn, account_id: int, reconciliation_data: dict, ap
                 csv_row.get('balance'),
                 csv_row.get('category'),
                 reconciliation_data['session_id']
-            ])
+            ]).fetchone()
             inserted_count += 1
+
+            # Tag with recurring_event_id if a matching event is found
+            if new_row:
+                rec_event_id = _find_matching_recurring_event(
+                    conn, csv_row.get('amount'), csv_row.get('date')
+                )
+                if rec_event_id is not None:
+                    conn.execute(
+                        "UPDATE transactions SET recurring_event_id = ? WHERE id = ?",
+                        [rec_event_id, new_row[0]]
+                    )
         
         # Mark unmatched manual entries
         matched_manual_ids = {mid for _, mid in approved_set}

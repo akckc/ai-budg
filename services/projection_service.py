@@ -9,6 +9,15 @@ from services.forecast_service import (
 from models.projection_dto import DailyProjection, ProjectionResult
 
 
+def _is_consumed(event_id: int, occ_date: date, consumed_map: dict) -> bool:
+    """Return True if a transaction linked to event_id exists within ±3 days of occ_date."""
+    tx_dates = consumed_map.get(event_id, [])
+    for tx_date in tx_dates:
+        if abs((tx_date - occ_date).days) <= 3:
+            return True
+    return False
+
+
 def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int = 14) -> ProjectionResult:
     """Deterministic N-day projection as defined by DA v1.1.
 
@@ -25,12 +34,25 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int =
     # amount is the 5th column in the repository's SELECT
     starting_balance = sum(tx[4] for tx in txs)
 
-    # --- fetch active recurring templates ---
+    # --- fetch active recurring templates and consumed transactions ---
     conn = get_db()
     try:
         events = get_active_recurring_events(conn)
+
+        # Query transactions linked to recurring events in the window (±3 day buffer)
+        consumed_rows = conn.execute("""
+            SELECT recurring_event_id, date
+            FROM transactions
+            WHERE recurring_event_id IS NOT NULL
+              AND date BETWEEN ? AND ?
+        """, [today - timedelta(days=3), end_date + timedelta(days=3)]).fetchall()
     finally:
         conn.close()
+
+    # Build consumed map: {event_id: [date, ...]}
+    consumed_map: dict = {}
+    for event_id, tx_date in consumed_rows:
+        consumed_map.setdefault(int(event_id), []).append(tx_date)
 
     # --- prepare daily buckets ---
     daily_deltas = {}
@@ -41,8 +63,11 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int =
 
     total_upcoming = 0.0
     for event in events:
+        allow_consume = event.get('allow_consume', True)
         occurrences = get_occurrences_in_window(event, today, window_days=days)
         for occ in occurrences:
+            if allow_consume and _is_consumed(int(event['id']), occ, consumed_map):
+                continue
             daily_deltas[occ] += event['amount']
             total_upcoming += event['amount']
 
