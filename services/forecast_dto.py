@@ -8,6 +8,7 @@ class ForecastDayDTO:
     """Single day in the forecast timeline."""
     date: str  # ISO format YYYY-MM-DD
     projected_balance: float
+    events: List[dict] = None
 
 
 @dataclass
@@ -30,7 +31,8 @@ class ForecastResponseDTO:
             timeline=[
                 ForecastDayDTO(
                     date=day.date.isoformat(),
-                    projected_balance=day.projected_balance
+                    projected_balance=day.projected_balance,
+                    events=day.events,
                 )
                 for day in projection.timeline
             ]

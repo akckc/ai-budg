@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import List
 
@@ -6,6 +6,7 @@ from typing import List
 class DailyProjection:
     date: date
     projected_balance: float
+    events: List[dict] = field(default_factory=list)
 
 @dataclass
 class ProjectionResult:

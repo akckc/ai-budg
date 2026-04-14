@@ -45,7 +45,7 @@ def get_forecast(as_of_date: Optional[str] = Query(None), days: int = Query(14, 
             "starting_balance": dto.starting_balance,
             "safe_to_spend": dto.safe_to_spend,
             "timeline": [
-                {"date": day.date, "projected_balance": day.projected_balance}
+                {"date": day.date, "projected_balance": day.projected_balance, "events": day.events}
                 for day in dto.timeline
             ]
         }

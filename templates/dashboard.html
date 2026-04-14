@@ -400,8 +400,9 @@
                 return;
             }
 
-            const dates = data.timeline.map(day => day.date);
-            const balances = data.timeline.map(day => day.projected_balance);
+            const forecastTimeline = data.timeline;
+            const dates = forecastTimeline.map(day => day.date);
+            const balances = forecastTimeline.map(day => day.projected_balance);
             
             const burndownCtx = document.getElementById('burndownChart');
             new Chart(burndownCtx, {
@@ -425,9 +426,22 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { 
+                        legend: {
                             display: true,
                             labels: { color: '#F2F2F2' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: function(context) {
+                                    const idx = context[0].dataIndex;
+                                    const day = forecastTimeline[idx];
+                                    if (!day || !day.events || day.events.length === 0) return '';
+                                    return day.events.map(e => {
+                                        const sign = e.amount >= 0 ? '+' : '';
+                                        return sign + '$' + e.amount.toFixed(2) + '  ' + e.name;
+                                    });
+                                }
+                            }
                         }
                     },
                     scales: {

@@ -56,9 +56,11 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int =
 
     # --- prepare daily buckets ---
     daily_deltas = {}
+    daily_events = {}
     iter_day = today
     while iter_day <= end_date:
         daily_deltas[iter_day] = 0.0
+        daily_events[iter_day] = []
         iter_day += timedelta(days=1)
 
     total_upcoming = 0.0
@@ -69,6 +71,7 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int =
             if allow_consume and _is_consumed(int(event['id']), occ, consumed_map):
                 continue
             daily_deltas[occ] += event['amount']
+            daily_events[occ].append({'name': event['name'], 'amount': event['amount']})
             total_upcoming += event['amount']
 
     # --- build timeline ---
@@ -76,7 +79,7 @@ def calculate_two_week_projection(as_of_date: Optional[date] = None, days: int =
     running = starting_balance
     for d in sorted(daily_deltas.keys()):
         running += daily_deltas[d]
-        timeline.append(DailyProjection(date=d, projected_balance=running))
+        timeline.append(DailyProjection(date=d, projected_balance=running, events=daily_events[d]))
 
     safe_to_spend = starting_balance + total_upcoming
 
