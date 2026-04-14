@@ -127,3 +127,46 @@ def set_recurring_event_active(*, event_id: int, active: bool) -> None:
         )
     finally:
         conn.close()
+
+
+def delete_recurring_event(event_id: int) -> None:
+    """Delete a recurring event by id."""
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM recurring_events WHERE id = ?", [event_id])
+    finally:
+        conn.close()
+
+
+def update_recurring_event(
+    event_id: int,
+    *,
+    account_id: int,
+    name: str,
+    amount: float,
+    category: str | None,
+    frequency: str,
+    day_of_month: int | None,
+    anchor_date: str,
+    active: bool,
+) -> None:
+    """Update all fields of a recurring event by id."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """
+            UPDATE recurring_events
+            SET account_id = ?,
+                name = ?,
+                amount = ?,
+                category = ?,
+                frequency = ?,
+                day_of_month = ?,
+                anchor_date = CAST(? AS DATE),
+                active = ?
+            WHERE id = ?
+            """,
+            [account_id, name, amount, category, frequency, day_of_month, anchor_date, active, event_id],
+        )
+    finally:
+        conn.close()

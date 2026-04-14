@@ -7,7 +7,9 @@ from pydantic import BaseModel
 
 from services.recurring_service import (
     add_recurring_event,
+    edit_recurring_event,
     get_recurring_events,
+    remove_recurring_event,
     toggle_recurring_event_active,
 )
 
@@ -27,6 +29,17 @@ class RecurringAddRequest(BaseModel):
 
 class RecurringToggleRequest(BaseModel):
     active: bool
+
+
+class RecurringEditRequest(BaseModel):
+    account_id: int
+    name: str
+    amount: float
+    category: str | None = None
+    frequency: str
+    day_of_month: int | None = None
+    anchor_date: str
+    active: bool = True
 
 
 @router.get("/recurring", response_class=HTMLResponse)
@@ -235,6 +248,18 @@ def recurring_page():
                 background: #6CB6FF;
                 text-decoration: none;
             }
+
+            .danger-btn {
+                background: var(--color-expense);
+            }
+
+            .danger-btn:hover {
+                background: #ff6b6b;
+            }
+
+            #editCard {
+                display: none;
+            }
         </style>
     </head>
     <body>
@@ -292,6 +317,56 @@ def recurring_page():
             <div id="status" class="status"></div>
         </div>
 
+        <div class="card" id="editCard">
+            <h3>Edit Recurring Event</h3>
+            <input type="hidden" id="edit_event_id">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="edit_account_id">Account ID</label>
+                    <input id="edit_account_id" type="number" min="1" required>
+                </div>
+                <div class="field">
+                    <label for="edit_name">Name</label>
+                    <input id="edit_name" type="text" required>
+                </div>
+                <div class="field">
+                    <label for="edit_amount">Amount</label>
+                    <input id="edit_amount" type="number" step="0.01" required>
+                </div>
+                <div class="field">
+                    <label for="edit_category">Category (optional)</label>
+                    <input id="edit_category" type="text">
+                </div>
+                <div class="field">
+                    <label for="edit_frequency">Frequency</label>
+                    <select id="edit_frequency">
+                        <option value="monthly">monthly</option>
+                        <option value="biweekly">biweekly</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="edit_day_of_month">Day of Month (monthly only)</label>
+                    <input id="edit_day_of_month" type="number" min="1" max="31">
+                </div>
+                <div class="field">
+                    <label for="edit_anchor_date">Anchor Date</label>
+                    <input id="edit_anchor_date" type="date" required>
+                </div>
+                <div class="field">
+                    <label>Active</label>
+                    <div class="checkbox-row">
+                        <input id="edit_active" type="checkbox">
+                        <label for="edit_active">Enabled</label>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button onclick="saveEdit()">Save Changes</button>
+                <button class="secondary-btn" onclick="cancelEdit()">Cancel</button>
+            </div>
+            <div id="editStatus" class="status"></div>
+        </div>
+
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="margin: 0;">Existing Recurring Events</h3>
@@ -309,7 +384,7 @@ def recurring_page():
                         <th>Day</th>
                         <th>Anchor Date</th>
                         <th>Active</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="eventsTable"></tbody>
@@ -344,8 +419,10 @@ def recurring_page():
                             <td>${event.day_of_month ?? ''}</td>
                             <td>${event.anchor_date || ''}</td>
                             <td>${event.active ? 'Yes' : 'No'}</td>
-                            <td>
+                            <td style="display: flex; gap: 6px; flex-wrap: wrap;">
                                 <button class="secondary-btn" onclick="toggleRecurringEvent(${event.id}, ${toggleTarget})">${btnText}</button>
+                                <button class="secondary-btn" onclick="openEdit(${JSON.stringify(event).replace(/"/g, '&quot;')})">Edit</button>
+                                <button class="danger-btn" onclick="deleteRecurringEvent(${event.id})">Delete</button>
                             </td>
                         </tr>
                     `;
@@ -418,6 +495,80 @@ def recurring_page():
                 }
             }
 
+            function openEdit(event) {
+                document.getElementById('edit_event_id').value = event.id;
+                document.getElementById('edit_account_id').value = event.account_id;
+                document.getElementById('edit_name').value = event.name;
+                document.getElementById('edit_amount').value = event.amount;
+                document.getElementById('edit_category').value = event.category || '';
+                document.getElementById('edit_frequency').value = event.frequency;
+                document.getElementById('edit_day_of_month').value = event.day_of_month ?? '';
+                document.getElementById('edit_anchor_date').value = event.anchor_date || '';
+                document.getElementById('edit_active').checked = event.active;
+                document.getElementById('editStatus').textContent = '';
+                document.getElementById('editStatus').className = 'status';
+                document.getElementById('editCard').style.display = 'block';
+                document.getElementById('editCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            function cancelEdit() {
+                document.getElementById('editCard').style.display = 'none';
+            }
+
+            async function saveEdit() {
+                const eventId = document.getElementById('edit_event_id').value;
+                const payload = {
+                    account_id: Number(document.getElementById('edit_account_id').value),
+                    name: document.getElementById('edit_name').value,
+                    amount: Number(document.getElementById('edit_amount').value),
+                    category: document.getElementById('edit_category').value || null,
+                    frequency: document.getElementById('edit_frequency').value,
+                    day_of_month: document.getElementById('edit_day_of_month').value
+                        ? Number(document.getElementById('edit_day_of_month').value)
+                        : null,
+                    anchor_date: document.getElementById('edit_anchor_date').value,
+                    active: document.getElementById('edit_active').checked,
+                };
+
+                const editStatus = document.getElementById('editStatus');
+                editStatus.className = 'status';
+
+                try {
+                    const res = await fetch(`/recurring/${eventId}/edit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.detail || 'Failed to save changes');
+                    }
+                    editStatus.textContent = 'Saved.';
+                    editStatus.classList.add('success');
+                    document.getElementById('editCard').style.display = 'none';
+                    await loadRecurringEvents();
+                } catch (err) {
+                    editStatus.textContent = err.message;
+                    editStatus.classList.add('error');
+                }
+            }
+
+            async function deleteRecurringEvent(eventId) {
+                if (!confirm(`Delete recurring event #${eventId}? This cannot be undone.`)) return;
+                try {
+                    const res = await fetch(`/recurring/${eventId}`, { method: 'DELETE' });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.detail || 'Delete failed');
+                    }
+                    await loadRecurringEvents();
+                } catch (err) {
+                    const status = document.getElementById('status');
+                    status.textContent = err.message;
+                    status.className = 'status error';
+                }
+            }
+
             loadRecurringEvents();
         </script>
     </body>
@@ -442,6 +593,21 @@ def recurring_add(payload: RecurringAddRequest):
 @router.post("/recurring/{event_id}/toggle")
 def recurring_toggle(event_id: int, payload: RecurringToggleRequest):
     toggle_recurring_event_active(event_id=event_id, active=payload.active)
+    return {"success": True}
+
+
+@router.post("/recurring/{event_id}/edit")
+def recurring_edit(event_id: int, payload: RecurringEditRequest):
+    try:
+        edit_recurring_event(event_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"success": True}
+
+
+@router.delete("/recurring/{event_id}")
+def recurring_delete(event_id: int):
+    remove_recurring_event(event_id)
     return {"success": True}
 
 
