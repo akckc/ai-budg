@@ -7,6 +7,9 @@ from repositories.transactions_repository import (
     get_transactions_filtered as repo_get_transactions_filtered,
     delete_transactions as repo_delete_transactions,
 )
+from repositories.transaction_reconciliation_repository import (
+    set_transaction_recurring_link as repo_set_recurring_link,
+)
 from repositories.category_rules_repository import get_all_category_rules
 from services.category_rule_engine import evaluate_category
 from services.merchant_normalization import normalize_merchant
@@ -155,3 +158,8 @@ def delete_transactions(transaction_ids: list[int]) -> int:
         return repo_delete_transactions(conn, transaction_ids)
     finally:
         conn.close()
+
+
+def link_transaction_to_recurring(*, transaction_id: int, recurring_event_id: int | None) -> None:
+    """Set or clear the recurring_event_id link on a transaction."""
+    repo_set_recurring_link(transaction_id=transaction_id, recurring_event_id=recurring_event_id)

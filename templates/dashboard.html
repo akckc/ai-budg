@@ -295,13 +295,24 @@
                 <th>Date</th>
                 <th>Description</th>
                 <th>Amount</th>
+                <th>Linked</th>
             </tr>
-            {% for date, description, amount, category in recent_transactions %}
+            {% for tx_id, date, description, amount, category, recurring_event_id in recent_transactions %}
             <tr>
                 <td>{{ date }}</td>
                 <td>{{ description }}</td>
                 <td class="{{ 'income' if amount > 0 else 'expense' }}">
                     ${{ "%.2f"|format(amount) }}
+                </td>
+                <td>
+                    <select class="link-recurring-select"
+                            data-tx-id="{{ tx_id }}"
+                            data-current-recurring-id="{{ recurring_event_id or '' }}"
+                            onchange="linkRecurring(this)"
+                            style="padding:4px 6px; background:var(--bg-main); border:1px solid var(--border-default); color:var(--text-primary); border-radius:4px; font-size:12px;">
+                        <option value="">— none —</option>
+                    </select>
+                    <span id="link-status-{{ tx_id }}" style="font-size:11px; margin-left:4px;"></span>
                 </td>
             </tr>
             {% endfor %}
@@ -467,8 +478,48 @@
         }
     }
 
+    async function loadRecurringOptions() {
+        const res = await fetch('/recurring/list');
+        const data = await res.json();
+        document.querySelectorAll('.link-recurring-select').forEach(sel => {
+            const currentId = sel.dataset.currentRecurringId
+                ? parseInt(sel.dataset.currentRecurringId)
+                : null;
+            data.events.forEach(ev => {
+                const opt = document.createElement('option');
+                opt.value = ev.id;
+                opt.textContent = ev.name;
+                if (ev.id === currentId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        });
+    }
+
+    async function linkRecurring(sel) {
+        const txId = sel.dataset.txId;
+        const val = sel.value ? parseInt(sel.value) : null;
+        const statusEl = document.getElementById('link-status-' + txId);
+        try {
+            const res = await fetch('/transactions/' + txId + '/link_recurring', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recurring_event_id: val }),
+            });
+            if (!res.ok) throw new Error('request failed');
+            statusEl.textContent = val ? 'linked' : 'cleared';
+            statusEl.style.color = 'var(--color-income)';
+        } catch (_) {
+            statusEl.textContent = 'error';
+            statusEl.style.color = 'var(--color-expense)';
+        }
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    }
+
     // Load burndown chart when page loads
-    document.addEventListener('DOMContentLoaded', loadBurndownChart);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadBurndownChart();
+        loadRecurringOptions();
+    });
 
     const ctx = document.getElementById('categoryChart');
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from typing import Optional
 
 from services.transaction_service import (
@@ -8,10 +9,15 @@ from services.transaction_service import (
     reclassify_all_transactions,
     get_filtered_transactions,
     delete_transactions,
+    link_transaction_to_recurring,
 )
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+
+class LinkRecurringRequest(BaseModel):
+    recurring_event_id: int | None = None
 
 # Standard allowed categories for dropdown
 ALLOWED_CATEGORIES = [
@@ -138,6 +144,15 @@ def reclassify():
 # -------------------------
 # DELETE TRANSACTIONS
 # -------------------------
+
+@router.post("/transactions/{transaction_id}/link_recurring")
+def link_recurring(transaction_id: int, payload: LinkRecurringRequest):
+    link_transaction_to_recurring(
+        transaction_id=transaction_id,
+        recurring_event_id=payload.recurring_event_id,
+    )
+    return {"success": True}
+
 
 @router.post("/transactions/delete")
 async def delete_selected_transactions(request: Request):

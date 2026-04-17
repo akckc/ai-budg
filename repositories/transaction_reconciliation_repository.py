@@ -5,6 +5,19 @@ import re
 import uuid
 
 
+def set_transaction_recurring_link(*, transaction_id: int, recurring_event_id: int | None) -> None:
+    """Update transactions.recurring_event_id for the given transaction id."""
+    from db import get_db
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE transactions SET recurring_event_id = ? WHERE id = ?",
+            [recurring_event_id, transaction_id],
+        )
+    finally:
+        conn.close()
+
+
 def _find_matching_recurring_event(conn, amount: float, tx_date) -> Optional[int]:
     """
     Find a consumable recurring event matching the given amount and date.

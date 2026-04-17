@@ -53,7 +53,7 @@ def dashboard(request: Request):
 
     # --- Recent transactions ---
     recent_transactions = conn.execute("""
-        SELECT date, description, amount, category
+        SELECT id, date, description, amount, category, recurring_event_id
         FROM transactions
         ORDER BY id DESC
         LIMIT 5
