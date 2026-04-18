@@ -4,7 +4,7 @@ import os
 from datetime import date
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, ApplicationBuilder, CommandHandler, ContextTypes
 
 from db import get_db
 from services.forecast_service import get_active_recurring_events, get_occurrences_in_window
@@ -105,18 +105,25 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # ---------------------------------------------------------------------------
 
 def start_bot() -> None:
-    """Build the bot application and start polling. Blocking — run in a thread."""
+    """Drive the bot manually via asyncio — safe to call from a non-main thread."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot disabled.")
         return
 
+    async def run() -> None:
+        application = ApplicationBuilder().token(token).build()
+        application.add_handler(CommandHandler("start", cmd_start))
+        application.add_handler(CommandHandler("summary", cmd_summary))
+
+        async with application:
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling(drop_pending_updates=True)
+            logger.info("Telegram bot polling started.")
+            while True:
+                await asyncio.sleep(1)
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    application = Application.builder().token(token).build()
-    application.add_handler(CommandHandler("start", cmd_start))
-    application.add_handler(CommandHandler("summary", cmd_summary))
-
-    logger.info("Telegram bot starting (polling).")
-    application.run_polling(drop_pending_updates=True)
+    loop.run_until_complete(run())
