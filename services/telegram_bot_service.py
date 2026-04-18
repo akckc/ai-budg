@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from datetime import date
@@ -105,15 +106,15 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 def start_bot() -> None:
     """Build the bot application and start polling. Blocking — run in a thread."""
-    if not TELEGRAM_BOT_TOKEN:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot disabled.")
         return
 
-    application = (
-        Application.builder()
-        .token(TELEGRAM_BOT_TOKEN)
-        .build()
-    )
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    application = Application.builder().token(token).build()
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("summary", cmd_summary))
 
