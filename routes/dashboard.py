@@ -59,13 +59,18 @@ def dashboard(request: Request):
         LIMIT 5
     """).fetchall()
 
+    conn.close()  # release before projection opens its own connection
+
     # --- Two-week projection (new deterministic engine) ---
     try:
         projection = calculate_two_week_projection()
         projected_balance = projection.timeline[-1].projected_balance
-        # still call legacy forecast service for item list so template
-        # remains unchanged
-        forecast = calculate_two_week_forecast(conn, date.today())
+        # legacy forecast service needs its own connection now that conn is closed
+        forecast_conn = get_db()
+        try:
+            forecast = calculate_two_week_forecast(forecast_conn, date.today())
+        finally:
+            forecast_conn.close()
         upcoming_items = forecast['items']
     except Exception as e:
         print("Projection error:", e)

@@ -158,14 +158,14 @@ def init_db():
             conn.execute("ALTER TABLE recurring_events ADD COLUMN allow_consume BOOLEAN DEFAULT TRUE")
             log_info("Added allow_consume column to recurring_events.")
         except Exception:
-            pass  # Column already exists
+            conn.rollback()  # reset aborted transaction so subsequent statements can run
 
         # Migration: add recurring_event_id to transactions
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN recurring_event_id BIGINT")
             log_info("Added recurring_event_id column to transactions.")
         except Exception:
-            pass  # Column already exists
+            conn.rollback()  # reset aborted transaction so subsequent statements can run
 
         # AI category suggestions cache table
         conn.execute("""
