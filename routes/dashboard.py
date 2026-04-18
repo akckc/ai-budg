@@ -80,9 +80,9 @@ def dashboard(request: Request):
             
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "current_balance": current_balance,
             "monthly_income": monthly_income,
             "monthly_expenses": monthly_expenses,

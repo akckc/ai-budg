@@ -61,9 +61,9 @@ def reconciliation_review_page(request: Request, session_id: str):
     ]
     
     return templates.TemplateResponse(
+        request,
         "reconciliation_review.html",
         {
-            "request": request,
             "session_id": session_id,
             "account_id": data.get('account_id'),
             "auto_matched": auto_matched_display,

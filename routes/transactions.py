@@ -108,9 +108,9 @@ def get_transactions(
         )
 
     return templates.TemplateResponse(
+        request,
         "transactions.html",
         {
-            "request": request,
             "transactions": tx_dicts,
             "allowed_categories": ALLOWED_CATEGORIES,
         },
