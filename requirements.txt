@@ -4,3 +4,4 @@ requests
 python-multipart
 duckdb
 Jinja2
+python-telegram-bot==20.7

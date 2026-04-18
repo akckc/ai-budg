@@ -15,6 +15,10 @@ app = FastAPI()
 
 init_db()
 
+import threading
+from services.telegram_bot_service import start_bot
+threading.Thread(target=start_bot, daemon=True).start()
+
 app.include_router(dashboard_router)
 app.include_router(transactions_router)
 app.include_router(rules_router)
