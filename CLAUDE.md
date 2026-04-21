@@ -113,6 +113,21 @@ Sprint proposals use `.github/pull_request_template.md`.
   was removed in a Starlette upgrade. Affects `routes/dashboard.py`, `routes/transactions.py`,
   `routes/reconciliation.py` (already fixed). Any new template route must use the new signature.
 
+- **DuckDB `ALTER TABLE` in migrations**: If an `ALTER TABLE` fails (e.g. column already exists),
+  DuckDB leaves the connection in an aborted transaction state. Always call `conn.rollback()` in the
+  `except` block — bare `pass` silently poisons all subsequent statements on that connection.
+  See `db.py` migration blocks for the correct pattern.
+
+- **DuckDB single-writer + dashboard route**: DuckDB allows only one writer connection at a time.
+  The dashboard route must close its `conn` before calling `calculate_two_week_projection()`, which
+  opens its own connection internally. Failing to do so causes silent projection failures. See
+  `routes/dashboard.py` for the correct close-then-project pattern.
+
+- **Telegram bot in daemon thread**: `run_polling()` calls `set_wakeup_fd()` which only works on
+  the main thread. The bot must use a manual async loop: create a new event loop with
+  `asyncio.new_event_loop()`, then drive it with `loop.run_until_complete(run())` where `run()` calls
+  `application.updater.start_polling()` directly. See `services/telegram_bot_service.py`.
+
 ---
 
 ## Open Backlog (as of last update)
