@@ -45,7 +45,6 @@ def _allowed(update: Update) -> bool:
 # ---------------------------------------------------------------------------
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print(f"Received command from chat_id: {update.effective_chat.id}", flush=True)
     if not _allowed(update):
         return
     await update.message.reply_text(
@@ -55,7 +54,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print(f"Received command from chat_id: {update.effective_chat.id}", flush=True)
     if not _allowed(update):
         return
 
@@ -109,37 +107,25 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 def start_bot() -> None:
     """Drive the bot manually via asyncio — safe to call from a non-main thread."""
-    print("start_bot() called", flush=True)
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot disabled.")
         return
-    print("Token found, starting bot...", flush=True)
 
     async def run() -> None:
         try:
-            print("Building application...", flush=True)
             application = ApplicationBuilder().token(token).build()
-            print("Application built.", flush=True)
             application.add_handler(CommandHandler("start", cmd_start))
             application.add_handler(CommandHandler("summary", cmd_summary))
 
             async with application:
-                print("Entering application context...", flush=True)
                 await application.initialize()
-                print("Initialized.", flush=True)
                 await application.start()
-                print("Started.", flush=True)
                 await application.updater.start_polling(drop_pending_updates=True)
-                print("Polling started.", flush=True)
                 logger.info("Telegram bot polling started.")
-                i = 0
                 while True:
-                    await asyncio.sleep(30)
-                    i += 1
-                    print(f"Bot heartbeat #{i} — still polling.", flush=True)
+                    await asyncio.sleep(60)
         except Exception as e:
-            print(f"run() exception: {e}", flush=True)
             logger.exception(f"Bot run() raised an exception: {e}")
             raise
 
@@ -149,6 +135,5 @@ def start_bot() -> None:
         try:
             loop.run_until_complete(run())
         except Exception as e:
-            print(f"Bot crashed: {e}", flush=True)
             logger.exception(f"Bot crashed, restarting in 10 seconds: {e}")
             loop.run_until_complete(asyncio.sleep(10))
