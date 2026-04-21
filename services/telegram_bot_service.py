@@ -44,6 +44,7 @@ def _allowed(update: Update) -> bool:
 # ---------------------------------------------------------------------------
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print(f"Received command from chat_id: {update.effective_chat.id}", flush=True)
     if not _allowed(update):
         return
     await update.message.reply_text(
@@ -53,6 +54,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print(f"Received command from chat_id: {update.effective_chat.id}", flush=True)
     if not _allowed(update):
         return
 
