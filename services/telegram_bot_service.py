@@ -115,17 +115,25 @@ def start_bot() -> None:
 
     async def run() -> None:
         try:
+            print("Building application...", flush=True)
             application = ApplicationBuilder().token(token).build()
+            print("Application built.", flush=True)
             application.add_handler(CommandHandler("start", cmd_start))
             application.add_handler(CommandHandler("summary", cmd_summary))
 
             async with application:
+                print("Entering application context...", flush=True)
+                await application.initialize()
+                print("Initialized.", flush=True)
                 await application.start()
+                print("Started.", flush=True)
                 await application.updater.start_polling(drop_pending_updates=True)
+                print("Polling started.", flush=True)
                 logger.info("Telegram bot polling started.")
                 while True:
                     await asyncio.sleep(1)
         except Exception as e:
+            print(f"run() exception: {e}", flush=True)
             logger.exception(f"Bot run() raised an exception: {e}")
             raise
 
