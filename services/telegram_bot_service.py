@@ -33,10 +33,11 @@ def _fmt_date(d) -> str:
 
 
 def _allowed(update: Update) -> bool:
-    """Return True if the message is from the permitted chat (or no restriction set)."""
-    if TELEGRAM_CHAT_ID and str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
-        return False
-    return True
+    """Return True if the message is from a permitted chat (or no restriction set)."""
+    if not TELEGRAM_CHAT_ID:
+        return True
+    allowed_ids = [cid.strip() for cid in TELEGRAM_CHAT_ID.split(",")]
+    return str(update.effective_chat.id) in allowed_ids
 
 
 # ---------------------------------------------------------------------------
