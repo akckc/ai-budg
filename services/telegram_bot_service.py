@@ -106,10 +106,12 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 def start_bot() -> None:
     """Drive the bot manually via asyncio — safe to call from a non-main thread."""
+    print("start_bot() called", flush=True)
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("TELEGRAM_BOT_TOKEN not set — Telegram bot disabled.")
         return
+    print("Token found, starting bot...", flush=True)
 
     async def run() -> None:
         try:
@@ -133,5 +135,6 @@ def start_bot() -> None:
         try:
             loop.run_until_complete(run())
         except Exception as e:
+            print(f"Bot crashed: {e}", flush=True)
             logger.exception(f"Bot crashed, restarting in 10 seconds: {e}")
             loop.run_until_complete(asyncio.sleep(10))
