@@ -132,8 +132,11 @@ def start_bot() -> None:
                 await application.updater.start_polling(drop_pending_updates=True)
                 print("Polling started.", flush=True)
                 logger.info("Telegram bot polling started.")
+                i = 0
                 while True:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(30)
+                    i += 1
+                    print(f"Bot heartbeat #{i} — still polling.", flush=True)
         except Exception as e:
             print(f"run() exception: {e}", flush=True)
             logger.exception(f"Bot run() raised an exception: {e}")
