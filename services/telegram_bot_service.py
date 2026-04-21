@@ -118,7 +118,6 @@ def start_bot() -> None:
             application.add_handler(CommandHandler("summary", cmd_summary))
 
             async with application:
-                await application.initialize()
                 await application.start()
                 await application.updater.start_polling(drop_pending_updates=True)
                 logger.info("Telegram bot polling started.")
