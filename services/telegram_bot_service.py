@@ -85,14 +85,17 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if next_paycheck_date:
         sts_label = f"Safe to spend until {_fmt_date(next_paycheck_date)}"
+        pre_pay = [dp for dp in projection.timeline if dp.date < next_paycheck_date]
+        sts_amount = pre_pay[-1].projected_balance if pre_pay else projection.starting_balance
     else:
         sts_label = "Safe to spend (14-day window)"
+        sts_amount = projection.safe_to_spend
 
     lines = [
         "*💰 Budget Summary*",
         "",
         f"*Balance:* {_fmt(projection.starting_balance)}",
-        f"*{sts_label}:* {_fmt(projection.safe_to_spend)}",
+        f"*{sts_label}:* {_fmt(sts_amount)}",
         "",
         "*Upcoming — next 14 days:*",
     ]
