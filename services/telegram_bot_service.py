@@ -78,12 +78,23 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     upcoming.sort(key=lambda x: x[0])
 
+    next_paycheck_date = next(
+        (occ_date for occ_date, name, amount in upcoming if amount > 1500),
+        None
+    )
+
+    if next_paycheck_date:
+        sts_label = f"Safe to spend until {_fmt_date(next_paycheck_date)}"
+    else:
+        sts_label = "Safe to spend (14-day window)"
+
     lines = [
-        "*Budget Summary*",
-        f"Current balance:  {_fmt(projection.starting_balance)}",
-        f"Safe to spend:    {_fmt(projection.safe_to_spend)}",
+        "*💰 Budget Summary*",
         "",
-        "*Upcoming bills — next 14 days:*",
+        f"*Balance:* {_fmt(projection.starting_balance)}",
+        f"*{sts_label}:* {_fmt(projection.safe_to_spend)}",
+        "",
+        "*Upcoming — next 14 days:*",
     ]
 
     if upcoming:
@@ -92,10 +103,14 @@ async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     else:
         lines.append("  None scheduled")
 
-    end_balance = projection.timeline[-1].projected_balance if projection.timeline else projection.starting_balance
+    end_balance = (
+        projection.timeline[-1].projected_balance
+        if projection.timeline
+        else projection.starting_balance
+    )
     lines += [
         "",
-        f"Projected balance ({_fmt_date(projection.end_date)}):  {_fmt(end_balance)}",
+        f"*Projected balance* ({_fmt_date(projection.end_date)}):  {_fmt(end_balance)}",
     ]
 
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
