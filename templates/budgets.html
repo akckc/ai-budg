@@ -205,13 +205,20 @@
 
             data.forEach(item => {
                 const cat = item.category_name ?? '';
+                const budget = Number(item.monthly_budget) || 0;
+                const spend  = Number(item.current_spend)  || 0;
+                const remaining = Number(item.remaining);
+
+                const spendColor     = spend <= budget ? 'var(--color-income)' : 'var(--color-expense)';
+                const remainingColor = remaining >= 0  ? 'var(--color-income)' : 'var(--color-expense)';
+
                 const txnHref = '/transactions?category=' + encodeURIComponent(cat) + '&start_date=' + startDate;
                 const txnLink = '<a href="' + txnHref + '" class="txn-link">↗ txns</a>';
                 const row = '<tr>' +
                     '<td>' + cat + ' ' + txnLink + '</td>' +
-                    '<td style="color: var(--color-budget); font-weight: 600;">$' + formatMoney(item.monthly_budget) + '</td>' +
-                    '<td style="color: var(--color-expense);">' + formatMoney(item.current_spend) + '</td>' +
-                    '<td style="color: var(--color-income); font-weight: 600;">$' + formatMoney(item.remaining) + '</td>' +
+                    '<td style="color: var(--text-primary); font-weight: 600;">$' + formatMoney(item.monthly_budget) + '</td>' +
+                    '<td style="color: ' + spendColor + '; font-weight: 600;">$' + formatMoney(item.current_spend) + '</td>' +
+                    '<td style="color: ' + remainingColor + '; font-weight: 600;">$' + formatMoney(item.remaining) + '</td>' +
                     '<td>' + (item.active ? 'Yes' : 'No') + '</td>' +
                     '</tr>';
                 table.innerHTML += row;
