@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
+from routes.dashboard import templates
 from services.budget_suggest_service import get_budget_suggestions
 from services.budget_service import set_category_budget
 
 router = APIRouter()
-jinja = Jinja2Templates(directory="templates")
 
 
 class BudgetEntry(BaseModel):
@@ -22,7 +21,7 @@ class ApplyRequest(BaseModel):
 
 @router.get("/budgets/suggest")
 def budget_suggest_page(request: Request):
-    return jinja.TemplateResponse("budget_suggest.html", {"request": request})
+    return templates.TemplateResponse("budget_suggest.html", {"request": request})
 
 
 @router.get("/budgets/suggest/data")

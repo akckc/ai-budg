@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
+from routes.dashboard import templates
 from services.hygiene_service import get_orphan_groups, get_known_categories, reclassify_orphan_group
 
 router = APIRouter()
-jinja = Jinja2Templates(directory="templates")
 
 
 @router.get("/hygiene")
 def hygiene_page(request: Request):
-    return jinja.TemplateResponse("hygiene.html", {"request": request})
+    return templates.TemplateResponse("hygiene.html", {"request": request})
 
 
 @router.get("/hygiene/groups")
