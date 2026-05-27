@@ -8,7 +8,7 @@ from services.budget_suggest_service import get_budget_suggestions
 from services.budget_service import set_category_budget
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+jinja = Jinja2Templates(directory="templates")
 
 
 class BudgetEntry(BaseModel):
@@ -22,7 +22,7 @@ class ApplyRequest(BaseModel):
 
 @router.get("/budgets/suggest")
 def budget_suggest_page(request: Request):
-    return templates.TemplateResponse("budget_suggest.html", {"request": request})
+    return jinja.TemplateResponse("budget_suggest.html", {"request": request})
 
 
 @router.get("/budgets/suggest/data")

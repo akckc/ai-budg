@@ -4,12 +4,12 @@ from fastapi.templating import Jinja2Templates
 from services.hygiene_service import get_orphan_groups, get_known_categories, reclassify_orphan_group
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+jinja = Jinja2Templates(directory="templates")
 
 
 @router.get("/hygiene")
 def hygiene_page(request: Request):
-    return templates.TemplateResponse("hygiene.html", {"request": request})
+    return jinja.TemplateResponse("hygiene.html", {"request": request})
 
 
 @router.get("/hygiene/groups")
