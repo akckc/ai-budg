@@ -8,7 +8,7 @@ router = APIRouter()
 
 @router.get("/hygiene")
 def hygiene_page(request: Request):
-    return templates.TemplateResponse("hygiene.html", {"request": request})
+    return templates.TemplateResponse(request, "hygiene.html")
 
 
 @router.get("/hygiene/groups")

@@ -21,7 +21,7 @@ class ApplyRequest(BaseModel):
 
 @router.get("/budgets/suggest")
 def budget_suggest_page(request: Request):
-    return templates.TemplateResponse("budget_suggest.html", {"request": request})
+    return templates.TemplateResponse(request, "budget_suggest.html")
 
 
 @router.get("/budgets/suggest/data")
