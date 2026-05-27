@@ -114,6 +114,9 @@ All calculations must account for every active account.
 
 5. Architecture Principles
 
+All HTML rendering uses Jinja2 templates in the templates/ directory.
+Route files contain routing logic only — no HTML.
+
 Thin routes (no business logic in routes)
 
 Business logic lives exclusively in the service layer

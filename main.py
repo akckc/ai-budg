@@ -11,6 +11,7 @@ from routes.upload import router as upload_router
 from routes.ai import router as ai_router
 from routes.reconciliation import router as reconciliation_router
 from routes.hygiene import router as hygiene_router
+from routes.budget_suggest import router as budget_suggest_router
 
 app = FastAPI()
 
@@ -27,6 +28,7 @@ app.include_router(upload_router)
 app.include_router(ai_router)
 app.include_router(reconciliation_router)
 app.include_router(hygiene_router)
+app.include_router(budget_suggest_router)
 
 
 @app.on_event("startup")

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Budget Suggestions</title>
+    <style>
+        :root {
+            --bg-main: #2F2F2F;
+            --bg-card: #3A3A3A;
+            --border-default: #505050;
+            --text-primary: #F2F2F2;
+            --text-muted: #9A9A9A;
+            --color-income: #3FB950;
+            --color-budget: #58A6FF;
+            --color-warning: #F2CC60;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; padding: 32px; background: var(--bg-main); color: var(--text-primary); margin: 0; }
+        h2 { font-size: 28px; margin: 0 0 6px 0; }
+        .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 8px 0; }
+        .summary { color: var(--text-muted); font-size: 13px; margin: 0 0 24px 0; }
+        a { color: var(--color-budget); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back-link { display: inline-block; margin-bottom: 24px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+        thead th { text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border-default); }
+        tbody tr { border-bottom: 1px solid var(--border-default); }
+        tbody tr:last-child { border-bottom: none; }
+        td { padding: 11px 14px; font-size: 14px; vertical-align: middle; }
+        td.avg-spend { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        input[type="number"] { width: 120px; padding: 7px 10px; background: var(--bg-card); border: 1px solid var(--border-default); color: var(--text-primary); border-radius: 6px; font-size: 14px; }
+        input[type="number"]:focus { outline: none; border-color: var(--color-budget); }
+        input[type="number"]:disabled { opacity: 0.35; cursor: not-allowed; }
+        input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--color-budget); }
+        .apply-btn { padding: 10px 24px; background: var(--color-budget); color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
+        .apply-btn:hover { background: #6CB6FF; }
+        .apply-btn:disabled { background: #555; cursor: not-allowed; }
+        #result-msg { display: none; margin-top: 20px; padding: 14px 18px; background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.35); border-radius: 8px; color: var(--color-income); font-size: 14px; }
+        .loading { color: var(--text-muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h2>Budget Suggestions</h2>
+    <p class="subtitle">Based on your last 90 days of spending</p>
+    <a class="back-link" href="/dashboard">&larr; Back to Dashboard</a>
+    <p class="summary" id="summary-line">Loading&hellip;</p>
+
+    <div id="table-wrap">
+        <p class="loading">Loading&hellip;</p>
+    </div>
+
+    <button class="apply-btn" id="apply-btn" style="display:none">Apply Budgets</button>
+    <div id="result-msg"></div>
+
+    <script>
+        function fmt(n) {
+            return '$' + n.toFixed(2);
+        }
+
+        function esc(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function render(suggestions) {
+            const withSpend = suggestions.filter(s => s.avg_monthly > 0).length;
+            document.getElementById('summary-line').textContent =
+                suggestions.length + ' categories found — review and confirm below';
+
+            const rows = suggestions.map(s => {
+                const checked = s.avg_monthly > 0;
+                return `<tr data-category="${esc(s.category)}">
+                    <td>${esc(s.category)}</td>
+                    <td class="avg-spend">${fmt(s.avg_monthly)}</td>
+                    <td><input type="number" class="budget-input" value="${s.suggested_budget.toFixed(2)}"
+                        step="0.01" min="0" ${checked ? '' : 'disabled style="opacity:.35"'}></td>
+                    <td><input type="checkbox" class="include-cb" ${checked ? 'checked' : ''}></td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('table-wrap').innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Avg Monthly Spend</th>
+                            <th>Budget Amount</th>
+                            <th>Include?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="suggest-body">${rows}</tbody>
+                </table>`;
+
+            document.querySelectorAll('#suggest-body .include-cb').forEach(cb => {
+                const input = cb.closest('tr').querySelector('.budget-input');
+                cb.addEventListener('change', () => {
+                    input.disabled = !cb.checked;
+                    input.style.opacity = cb.checked ? '1' : '0.35';
+                });
+            });
+
+            document.getElementById('apply-btn').style.display = 'inline-block';
+        }
+
+        document.addEventListener('click', async e => {
+            if (!e.target.matches('#apply-btn')) return;
+            const btn = e.target;
+            const budgets = [...document.querySelectorAll('#suggest-body tr')]
+                .map(row => {
+                    const cb = row.querySelector('.include-cb');
+                    if (!cb.checked) return null;
+                    const val = parseFloat(row.querySelector('.budget-input').value);
+                    return { category: row.dataset.category, monthly_budget: isNaN(val) ? 0 : val };
+                })
+                .filter(Boolean);
+
+            if (!budgets.length) { alert('No categories selected.'); return; }
+
+            btn.disabled = true;
+            btn.textContent = 'Applying…';
+
+            try {
+                const res = await fetch('/budgets/suggest/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ budgets }),
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    const msg = document.getElementById('result-msg');
+                    msg.innerHTML = `✓ ${data.applied} budget${data.applied !== 1 ? 's' : ''} saved. <a href="/budgets">View Budgets &rarr;</a>`;
+                    msg.style.display = 'block';
+                    btn.style.display = 'none';
+                } else {
+                    alert('Apply failed. Please try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Apply Budgets';
+                }
+            } catch {
+                alert('Network error. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Apply Budgets';
+            }
+        });
+
+        fetch('/budgets/suggest/data')
+            .then(r => r.json())
+            .then(render);
+    </script>
+</body>
+</html>

@@ -26,6 +26,7 @@ These invariants must hold after every change:
 7. **Multi-account is first-class** — all balance/forecast calculations must span all active accounts.
 8. **Reconciliation augments, never destroys** — reconciled transactions update manual entries;
    they never silently delete or overwrite them.
+9. **Always use Jinja2 templates in `templates/`** — never inline HTML strings in route files.
 
 ---
 
