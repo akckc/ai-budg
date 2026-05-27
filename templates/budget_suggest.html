@@ -51,6 +51,7 @@
     <button class="apply-btn" id="apply-btn" style="display:none">Apply Budgets</button>
     <div id="result-msg"></div>
 
+    {% raw %}
     <script>
         function fmt(n) {
             return '$' + n.toFixed(2);
@@ -149,5 +150,6 @@
             .then(r => r.json())
             .then(render);
     </script>
+    {% endraw %}
 </body>
 </html>

@@ -40,6 +40,7 @@
     <a href="/dashboard">&larr; Back to Dashboard</a>
     <div id="orphan-list"><p class="loading">Loading&hellip;</p></div>
 
+    {% raw %}
     <script>
         function esc(s) {
             return String(s)
@@ -99,5 +100,6 @@
             .then(r => r.json())
             .then(d => render(d.orphan_groups, d.known_categories));
     </script>
+    {% endraw %}
 </body>
 </html>
