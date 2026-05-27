@@ -2,6 +2,7 @@ from repositories.category_budgets_repository import (
     upsert_category_budget,
     get_all_category_budgets,
     get_spend_grouped_by_category,
+    get_current_month_spend_by_category,
 )
 
 # repository import already includes spend aggregation; we'll use it for the new summary
@@ -70,9 +71,8 @@ def get_spend_vs_budget_summary() -> list[dict]:
 
     Read-only. No side effects.
     """
-    # reuse existing repository helpers; they open/close their own connections
     budgets = get_all_category_budgets()
-    spend_entries = get_spend_grouped_by_category()
+    spend_entries = get_current_month_spend_by_category()
 
     # build lookup maps (filter out None categories)
     budget_map = {b["category_name"]: float(b["monthly_budget"] or 0.0) for b in budgets if b["category_name"] is not None}

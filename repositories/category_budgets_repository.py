@@ -60,3 +60,27 @@ def get_spend_grouped_by_category() -> list[dict]:
         ]
     finally:
         conn.close()
+
+
+def get_current_month_spend_by_category() -> list[dict]:
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT category, SUM(amount)
+            FROM transactions
+            WHERE date >= date_trunc('month', CURRENT_DATE)
+              AND amount < 0
+            GROUP BY category
+            """
+        ).fetchall()
+
+        return [
+            {
+                "category_name": r[0],
+                "current_spend": abs(float(r[1])) if r[1] is not None else 0.0,
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()
