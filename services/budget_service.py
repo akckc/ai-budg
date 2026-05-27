@@ -1,7 +1,6 @@
 from repositories.category_budgets_repository import (
     upsert_category_budget,
     get_all_category_budgets,
-    get_spend_grouped_by_category,
     get_current_month_spend_by_category,
 )
 
@@ -28,7 +27,7 @@ def get_category_budget_summary() -> list[dict]:
     Deterministic read-only aggregation. No side effects.
     """
     budgets = get_all_category_budgets()
-    spend = get_spend_grouped_by_category()
+    spend = get_current_month_spend_by_category()
 
     spend_lookup = {s["category_name"]: s["current_spend"] for s in spend}
 
