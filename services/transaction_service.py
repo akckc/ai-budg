@@ -151,6 +151,25 @@ def get_filtered_transactions(start_date=None, end_date=None, category=None, acc
         conn.close()
 
 
+def get_transactions_for_export(start_date=None, end_date=None, category=None, account_id=None) -> list[dict]:
+    """Return filtered transactions for CSV export.
+
+    Reuses the same filtering logic as :func:`get_filtered_transactions`.
+    When no filters are supplied, all transactions are returned.
+    """
+    conn = get_db()
+    try:
+        return repo_get_transactions_filtered(
+            conn,
+            start_date=start_date,
+            end_date=end_date,
+            category=category,
+            account_id=account_id,
+        )
+    finally:
+        conn.close()
+
+
 def delete_transactions(transaction_ids: list[int]) -> int:
     """Delete transactions by their IDs. Returns number deleted."""
     conn = get_db()

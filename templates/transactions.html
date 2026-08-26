@@ -256,6 +256,7 @@
     <div class="delete-bar">
         <button id="delete-btn" onclick="deleteSelected()" disabled>Delete Selected</button>
         <span id="selected-count" style="color: var(--text-secondary); font-size: 13px;"></span>
+        <a id="export-btn" class="nav-link" style="margin-bottom: 0; margin-left: auto;" href="/transactions/export">📥 Export to CSV</a>
     </div>
     <table>
         <thead>
@@ -310,6 +311,15 @@
 <div class="status-message" id="statusMessage"></div>
 
 <script>
+    // Carry the current page filters (start_date/end_date/category/account_id)
+    // through to the CSV export link so the download matches what's on screen.
+    (function syncExportLink() {
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn && window.location.search) {
+            exportBtn.href = '/transactions/export' + window.location.search;
+        }
+    })();
+
     // Handle category change via AJAX
     document.querySelectorAll('.category-select').forEach(select => {
         select.addEventListener('change', async function() {

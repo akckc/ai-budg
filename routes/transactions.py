@@ -1,4 +1,8 @@
+import csv
+import io
+
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
@@ -8,6 +12,7 @@ from services.transaction_service import (
     update_transaction_category,
     reclassify_all_transactions,
     get_filtered_transactions,
+    get_transactions_for_export,
     delete_transactions,
     link_transaction_to_recurring,
 )
@@ -117,6 +122,44 @@ def get_transactions(
             "transactions": tx_dicts,
             "allowed_categories": ALLOWED_CATEGORIES,
         },
+    )
+
+
+@router.get("/transactions/export")
+def export_transactions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category: Optional[str] = None,
+    account_id: Optional[int] = None,
+):
+    """Stream a CSV download of transactions, optionally filtered.
+
+    With no query params, exports all transactions.
+    """
+    transactions = get_transactions_for_export(
+        start_date=start_date,
+        end_date=end_date,
+        category=category,
+        account_id=account_id,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["date", "description", "amount", "category", "source"])
+    for tx in transactions:
+        writer.writerow([
+            tx["date"],
+            tx["description"],
+            tx["amount"],
+            tx["category"] or "",
+            tx["source"],
+        ])
+
+    csv_bytes = io.BytesIO(output.getvalue().encode("utf-8"))
+    return StreamingResponse(
+        csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="transactions-export.csv"'},
     )
 
 
